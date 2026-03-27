@@ -382,6 +382,22 @@ $btnNext.addEventListener('click', async () => {
 // === Source selection ===
 setupOptionCards('step1', (v) => {
   selectedSource = v as typeof selectedSource;
+
+  // 링크 선택 시 URL 입력창 표시/숨김
+  const $linksArea = $('links-input-area');
+  if (v === 'links') {
+    $linksArea.classList.remove('hidden');
+    ($('links-textarea') as HTMLTextAreaElement).focus();
+  } else {
+    $linksArea.classList.add('hidden');
+  }
+});
+
+// 링크 입력창 URL 카운트
+$('links-textarea').addEventListener('input', () => {
+  const text = ($('links-textarea') as HTMLTextAreaElement).value;
+  const urls = text.split('\n').filter((line) => line.trim().startsWith('http'));
+  $('links-count').textContent = `${urls.length}개 URL`;
 });
 
 setupOptionCards('step2', (v) => {
