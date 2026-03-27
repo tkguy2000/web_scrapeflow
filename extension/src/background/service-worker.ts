@@ -110,20 +110,25 @@ async function handleCapture(opts: {
   tabId: number;
   format: string;
   fullPage: boolean;
-}): Promise<{ ok: boolean }> {
+}): Promise<{ ok: boolean; error?: string }> {
   const { tabId } = opts;
 
-  // 스크롤 스티칭 방식 사용 — 가장 안정적
-  // CDP는 debugger 팝업이 뜨고 일부 페이지에서 동작하지 않음
-  await captureFullPageByStitching(tabId);
-  return { ok: true };
+  try {
+    await captureFullPageByStitching(tabId);
+    return { ok: true };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error('[ScrapeFlow] 캡처 에러:', msg, err);
+    return { ok: false, error: msg };
+  }
 }
 
 // 풀 페이지 캡처 — 스크롤하면서 한 장씩 찍고 OffscreenCanvas로 합침
 async function captureFullPageByStitching(tabId: number): Promise<void> {
-  // 탭의 windowId 가져오기
+  console.log('[ScrapeFlow] Step 0: 탭 정보 가져오기');
   const tab = await chrome.tabs.get(tabId);
   const windowId = tab.windowId;
+  console.log('[ScrapeFlow] windowId:', windowId, 'url:', tab.url);
 
   // 1. 페이지 전체 크기 측정
   const [sizeResult] = await chrome.scripting.executeScript({
@@ -148,6 +153,7 @@ async function captureFullPageByStitching(tabId: number): Promise<void> {
     devicePixelRatio: number;
   } | undefined;
 
+  console.log('[ScrapeFlow] Step 1 결과:', size);
   if (!size) throw new Error('페이지 크기를 가져올 수 없습니다');
 
   const { scrollHeight, viewportHeight, devicePixelRatio: dpr } = size;

@@ -142,14 +142,18 @@ $btnCapture.addEventListener('click', async () => {
   $aiHint.textContent = '전체 페이지를 캡처하고 있습니다...';
 
   try {
-    await chrome.runtime.sendMessage({
+    const response = await chrome.runtime.sendMessage({
       type: MessageType.CAPTURE_FULL_PAGE,
       payload: { tabId: tab.id, format: 'png', fullPage: true },
     });
-    $aiHint.textContent = '캡처 완료! 다운로드를 확인하세요.';
+    if (response?.ok) {
+      $aiHint.textContent = '캡처 완료! 다운로드를 확인하세요.';
+    } else {
+      $aiHint.textContent = `캡처 실패: ${response?.error || '알 수 없는 에러'}`;
+    }
   } catch (err) {
     console.error('캡처 실패:', err);
-    $aiHint.textContent = '캡처에 실패했습니다';
+    $aiHint.textContent = `캡처 실패: ${String(err)}`;
   } finally {
     $btnCapture.disabled = false;
     resetButton($btnCapture, '📸', '풀 페이지 캡처');
