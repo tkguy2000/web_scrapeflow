@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Wear Shader - I, Houdini</title>
+  <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:wght@400;600&family=Lato:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+:root {
+  --bg: #f5f5f0;
+  --text: #333;
+  --accent: #8b7355;
+  --card-bg: #fff;
+  --border: #e0ddd5;
+  --font-heading: 'EB Garamond', Georgia, serif;
+  --font-body: 'Lato', -apple-system, sans-serif;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: var(--font-body);
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.7;
+  font-size: 16px;
+}
+
+.container {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 0 20px;
+}
+
+/* Header */
+.site-header {
+  background: #8b7355;
+  color: #fff;
+  padding: 40px 0;
+  text-align: center;
+}
+
+.site-title {
+  font-family: var(--font-heading);
+  font-size: 2.5em;
+  font-weight: 400;
+  margin-bottom: 8px;
+}
+
+.site-subtitle {
+  font-size: 14px;
+  opacity: 0.85;
+  max-width: 600px;
+  margin: 0 auto;
+  line-height: 1.5;
+}
+
+/* Navigation */
+nav {
+  background: var(--card-bg);
+  border-bottom: 1px solid var(--border);
+  padding: 12px 0;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+nav .container {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+nav a {
+  color: var(--accent);
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.categories {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.cat-tag {
+  font-size: 11px;
+  background: #f0ede5;
+  color: #8b7355;
+  padding: 2px 8px;
+  border-radius: 3px;
+  text-decoration: none;
+}
+
+/* Post cards */
+.post-list {
+  padding: 30px 0;
+}
+
+.post-card {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  margin-bottom: 24px;
+  overflow: hidden;
+  transition: box-shadow 0.2s;
+}
+
+.post-card:hover {
+  box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+}
+
+.post-card-image {
+  width: 100%;
+  height: 250px;
+  object-fit: cover;
+  display: block;
+}
+
+.post-card-body {
+  padding: 24px;
+}
+
+.post-card-date {
+  font-size: 12px;
+  color: #999;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.post-card-title {
+  font-family: var(--font-heading);
+  font-size: 1.5em;
+  margin: 8px 0;
+}
+
+.post-card-title a {
+  color: var(--text);
+  text-decoration: none;
+}
+
+.post-card-title a:hover {
+  color: var(--accent);
+}
+
+.post-card-excerpt {
+  color: #666;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.post-card-meta {
+  margin-top: 16px;
+  display: flex;
+  gap: 12px;
+}
+
+.post-card-label {
+  font-size: 11px;
+  background: #f0ede5;
+  color: #8b7355;
+  padding: 2px 8px;
+  border-radius: 3px;
+}
+
+/* Single post */
+.post-header {
+  padding: 40px 0 20px;
+}
+
+.post-title {
+  font-family: var(--font-heading);
+  font-size: 2.2em;
+  font-weight: 400;
+  margin-bottom: 8px;
+}
+
+.post-date {
+  color: #999;
+  font-size: 14px;
+}
+
+.post-content {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 32px;
+  margin-bottom: 40px;
+}
+
+.post-content img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 4px;
+  margin: 16px 0;
+}
+
+.post-content iframe {
+  max-width: 100%;
+  margin: 16px 0;
+}
+
+.post-content a {
+  color: var(--accent);
+}
+
+.post-labels {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border);
+}
+
+/* Back link */
+.back-link {
+  display: inline-block;
+  margin-bottom: 20px;
+  color: var(--accent);
+  text-decoration: none;
+  font-size: 14px;
+}
+
+/* Footer */
+.site-footer {
+  text-align: center;
+  padding: 30px 0;
+  font-size: 12px;
+  color: #999;
+  border-top: 1px solid var(--border);
+}
+
+/* Responsive */
+@media (max-width: 600px) {
+  .site-title { font-size: 1.8em; }
+  .post-title { font-size: 1.6em; }
+  .post-content { padding: 20px; }
+  .post-card-image { height: 180px; }
+}
+</style>
+</head>
+<body>
+  <nav>
+    <div class="container">
+      <a href="../index.html">I, Houdini</a>
+    </div>
+  </nav>
+
+  <main class="container">
+    <a href="../index.html" class="back-link">&larr; All Posts</a>
+
+    <header class="post-header">
+      <h1 class="post-title">Wear Shader</h1>
+      <div class="post-date">August 25, 2009 &middot; Sam</div>
+    </header>
+
+    <article class="post-content">
+      Just playing around with shaders - curvature and occlusion in SOPs to make a wear shader.<br />
+<br />
+In SOPs, made a little curvature vopsop. It is a vopsop to do curvature since the curvature SOP doesn't give a normalised result.<br />
+<br />
+Inside the vopsop, the neighbors of a point are looped through and the dot product of the direction to a neighbor and N is averaged for all neighbors.<br />
+<br />
+I shamelessly copied the idea from Dan:<br />
+<a href="https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEhqJIPzf6l3mCFuvMO6i4YqbxTh0JNgNTqLzk6y2bCf3OvOV0LXQ71Gq2b__3g-_n86nJC6wngfAXSe0TXugbEXpMyG2C6sin3Emo7ujZCYbcArE-aA59eyieELfEnwb8_LkUywdH4ejNY/s1600-h/curvature.jpg"><img alt="" border="0" id="BLOGGER_PHOTO_ID_5373845391259636306" src="../images/f471abded703.jpg" style="cursor: pointer; height: 335px; width: 316px;" /></a><br />
+<br />
+And some occlusion in SOPs, done in SOPs so that it only needs to be done once for all frames<br />
+<br />
+This is mashed a bit to get the result I want:<br />
+<a href="https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEg1hdS6ivMkSDwasvqdntFsGC2_agSHxyCZTLxObZmI98ISu_TEIyeeSnJbTHTf0ZunQDdWeILCrBuaXkM59oqg6MPWz0Xs9MmvaZlwCDG9kQeTx8NSFO8C8kReG7dQ_x0XntHgpAxixGg/s1600-h/occlusion.jpg"><img alt="" border="0" id="BLOGGER_PHOTO_ID_5373845400077678690" src="../images/9ac51623ae8d.jpg" style="cursor: pointer; height: 300px; width: 320px;" /></a><br />
+<br />
+Mult the two together:<br />
+<br />
+<a href="https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEjy-GvS0-Fc4qGn1Z8ib0zIkMMuuhmb5ajyRgREd3Q_v4LuCzICadnHtioaAugdTkFjGonsd4E8vXm2X6J4VCb5MFyPUTfzWYhtc5zQISWy-a1cjc3nWma1mMSwTVmOLVCTC-FD3DUd6gk/s1600-h/occ_and_cur.jpg"><img alt="" border="0" id="BLOGGER_PHOTO_ID_5373845405095793090" src="../images/5da3d0c4d69e.jpg" style="cursor: pointer; height: 292px; width: 320px;" /></a><br />
+<br />
+This is to represent where the surface is likely to get worn or chipped.<br />
+<br />
+I started with the default reflective shader and added a displacement shader  that gets the wear attribute, mults it with noise, then that goes through a contrast function to give a sharp edge. That 'matte' is exported to the surface shader to control a few things in there like reflections, colour etc.<br />
+<br />
+<a href="https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEjKRbopHUGaIPoMRtpq9M-xvq3RCx2TZ7xMnYDxqbP2F8WFiz0hLQIPNoJtQPyHPUT5AH9UDsstoJGiRdNFtU8M1iVPuzX15i5n11QJ9mpC_8qfw4treXDbGrQrS1t80jZlneUvPzelSbw/s1600-h/paint_chip.jpg"><img alt="" border="0" id="BLOGGER_PHOTO_ID_5373846939779856690" src="../images/7ec990a6e4fd.jpg" style="cursor: pointer; height: 180px; width: 320px;" /></a><br />
+<br />
+hipnc file is <a href="https://www.oliverwhiddles.com/ihoudini/wear_shader.hipnc">here</a><br />
+<br />
+took about 16 minutes to render that 720P frame (just a HDRI and PBR).<br />
+<br />
+Here it is with the contrast centre animated in the shader:<br />
+<br />
+<iframe allowfullscreen='allowfullscreen' webkitallowfullscreen='webkitallowfullscreen' mozallowfullscreen='mozallowfullscreen' width='320' height='266' src='https://www.blogger.com/video.g?token=AD6v5dyxBLRV1GJrXCSCRUcQRJr2z1j1Ke8GB8Z646v_TBXHeFYPdRa-HUtO9kSu4x--IzXE_-lul10cL4fQ7SejxA' class='b-hbp-video b-uploaded' frameborder='0'></iframe>
+      <div class="post-labels"><span class="post-card-label">curvature</span><span class="post-card-label">occlusion</span><span class="post-card-label">PBR</span><span class="post-card-label">shader</span><span class="post-card-label">sops</span><span class="post-card-label">vopsop</span></div>
+    </article>
+
+    <div style="display:flex;justify-content:space-between;padding:20px 0;font-size:14px;">
+      <div><a href="wear-shader-2.html">&larr; Wear Shader #2</a></div>
+      <div><a href="random-1.html">Random #1 &rarr;</a></div>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container">
+      <p>Generated by ScrapeFlow</p>
+    </div>
+  </footer>
+</body>
+</html>

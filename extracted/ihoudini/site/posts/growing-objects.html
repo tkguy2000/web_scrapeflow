@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Growing Objects - I, Houdini</title>
+  <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:wght@400;600&family=Lato:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+:root {
+  --bg: #f5f5f0;
+  --text: #333;
+  --accent: #8b7355;
+  --card-bg: #fff;
+  --border: #e0ddd5;
+  --font-heading: 'EB Garamond', Georgia, serif;
+  --font-body: 'Lato', -apple-system, sans-serif;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: var(--font-body);
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.7;
+  font-size: 16px;
+}
+
+.container {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 0 20px;
+}
+
+/* Header */
+.site-header {
+  background: #8b7355;
+  color: #fff;
+  padding: 40px 0;
+  text-align: center;
+}
+
+.site-title {
+  font-family: var(--font-heading);
+  font-size: 2.5em;
+  font-weight: 400;
+  margin-bottom: 8px;
+}
+
+.site-subtitle {
+  font-size: 14px;
+  opacity: 0.85;
+  max-width: 600px;
+  margin: 0 auto;
+  line-height: 1.5;
+}
+
+/* Navigation */
+nav {
+  background: var(--card-bg);
+  border-bottom: 1px solid var(--border);
+  padding: 12px 0;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+nav .container {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+nav a {
+  color: var(--accent);
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.categories {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.cat-tag {
+  font-size: 11px;
+  background: #f0ede5;
+  color: #8b7355;
+  padding: 2px 8px;
+  border-radius: 3px;
+  text-decoration: none;
+}
+
+/* Post cards */
+.post-list {
+  padding: 30px 0;
+}
+
+.post-card {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  margin-bottom: 24px;
+  overflow: hidden;
+  transition: box-shadow 0.2s;
+}
+
+.post-card:hover {
+  box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+}
+
+.post-card-image {
+  width: 100%;
+  height: 250px;
+  object-fit: cover;
+  display: block;
+}
+
+.post-card-body {
+  padding: 24px;
+}
+
+.post-card-date {
+  font-size: 12px;
+  color: #999;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.post-card-title {
+  font-family: var(--font-heading);
+  font-size: 1.5em;
+  margin: 8px 0;
+}
+
+.post-card-title a {
+  color: var(--text);
+  text-decoration: none;
+}
+
+.post-card-title a:hover {
+  color: var(--accent);
+}
+
+.post-card-excerpt {
+  color: #666;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.post-card-meta {
+  margin-top: 16px;
+  display: flex;
+  gap: 12px;
+}
+
+.post-card-label {
+  font-size: 11px;
+  background: #f0ede5;
+  color: #8b7355;
+  padding: 2px 8px;
+  border-radius: 3px;
+}
+
+/* Single post */
+.post-header {
+  padding: 40px 0 20px;
+}
+
+.post-title {
+  font-family: var(--font-heading);
+  font-size: 2.2em;
+  font-weight: 400;
+  margin-bottom: 8px;
+}
+
+.post-date {
+  color: #999;
+  font-size: 14px;
+}
+
+.post-content {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 32px;
+  margin-bottom: 40px;
+}
+
+.post-content img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 4px;
+  margin: 16px 0;
+}
+
+.post-content iframe {
+  max-width: 100%;
+  margin: 16px 0;
+}
+
+.post-content a {
+  color: var(--accent);
+}
+
+.post-labels {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border);
+}
+
+/* Back link */
+.back-link {
+  display: inline-block;
+  margin-bottom: 20px;
+  color: var(--accent);
+  text-decoration: none;
+  font-size: 14px;
+}
+
+/* Footer */
+.site-footer {
+  text-align: center;
+  padding: 30px 0;
+  font-size: 12px;
+  color: #999;
+  border-top: 1px solid var(--border);
+}
+
+/* Responsive */
+@media (max-width: 600px) {
+  .site-title { font-size: 1.8em; }
+  .post-title { font-size: 1.6em; }
+  .post-content { padding: 20px; }
+  .post-card-image { height: 180px; }
+}
+</style>
+</head>
+<body>
+  <nav>
+    <div class="container">
+      <a href="../index.html">I, Houdini</a>
+    </div>
+  </nav>
+
+  <main class="container">
+    <a href="../index.html" class="back-link">&larr; All Posts</a>
+
+    <header class="post-header">
+      <h1 class="post-title">Growing Objects</h1>
+      <div class="post-date">May 26, 2009 &middot; Sam</div>
+    </header>
+
+    <article class="post-content">
+      <span style="font-family: verdana;">I saw <a href="http://forums.odforce.net/index.php?showtopic=9111&amp;st=0&amp;p=60107&amp;#entry60107">this post</a> over at odforce and have been playing with growing objects in a dynamic way ...<br /><br /></span><iframe allowfullscreen='allowfullscreen' webkitallowfullscreen='webkitallowfullscreen' mozallowfullscreen='mozallowfullscreen' width='320' height='266' src='https://www.blogger.com/video.g?token=AD6v5dz2wqSDjSj0-M4kacJGd3nsJ_bULes70vhkg6Re1E012u88l0YN_aO0o2YJbpLag286jIj1Kf5CWBtXtWf5tw' class='b-hbp-video b-uploaded' frameborder='0'></iframe><br />
+<br />
+<span style="font-family: verdana;">It is basically just points scattered in the volume of an object, then a SOP solver is used to increase a points pscale if it is colliding with another point. Metaballs are copied onto the points, converted to polys, then cookied with the original geo (not in the video above though...)</span><br />
+<br />
+<span style="font-family: verdana;">This is the source geo and with the scattered points:</span><br />
+<br />
+<a href="https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEjlr5utSAGpv_CMLTmldAVotJkae6yBYsxG6gxIdAOZRxMNAPBKCsOVqvgjiEtezVXTtMI_cIZr7vG53U9WMmjIBk_uCdtumDw1mv1PKi4PF_-cMOMRbq8Qu99NAK5cYbQ-Dvg2bo3joAU/s1600-h/starting_object.JPG"><img alt="" border="0" id="BLOGGER_PHOTO_ID_5340131431047545682" src="../images/562a3c212509.jpg" style="cursor: pointer; height: 299px; width: 320px;" /></a><a href="https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEhiJTl69UNERvtFz6dHfAeIBE-qi2-tKy_axzSPE7pjRVLgtn04AB0ptu-KaGmh_qyP4zo_eUDfS8RzE18BHeD3VubJK4mntgKyyroOFy8AZ_TjB6rWMljUiHC_ZxWSzMOpynoAgbK1LuY/s1600-h/points.JPG"><img alt="" border="0" id="BLOGGER_PHOTO_ID_5340132754688967186" src="../images/be845e9697e1.jpg" style="cursor: pointer; height: 295px; width: 320px;" /></a><br />
+<br />
+<br />
+Some attributes are added for the sim:<br />
+<br />
+<a href="https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEj4p9O2FEBE7Ejrhg2OsWA0l0TPzSN67JX0TNMilEGr2ildWCjNmqEkYFOPM0kgpBQdkCrX35CATQgWh7Xu5kGy7z1DZ1GU4o9ncd50yauA9RcCx84OVZ4uWXuppdISE2URzc4PAgBneo8/s1600-h/add_attributes.JPG"><img alt="" border="0" id="BLOGGER_PHOTO_ID_5340140755679485074" src="../images/8e08e33fd3e2.jpg" style="cursor: pointer; height: 238px; width: 224px;" /></a><br />
+<br />
+The pscale attribute is set to 0 except for one which is set to <span style="font-style: italic;">maxSize </span>to start the sim going. Roughness starts at 1 and decays when a point has stopped growing, this later is fed into the shader to increase the cone angle on the reflections and refractions...<br />
+<br />
+These points get loaded into a DOP network and then into this SOP solver:<br />
+<br />
+<a href="https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEgSph6nAI-A1O3eja7x-KG2HCZbvxuFzvwvll1K3OMQRzdanySMTkRhAjXqGhfew5NzT39OX2FsCXNyEQJ2rI4o7c0x4CD-TqbnuJtwSPFfRhdGkPb3kfiEsbN6kZYB17RZzghx_jBiyZM/s1600-h/sopsolver.JPG"><img alt="" border="0" id="BLOGGER_PHOTO_ID_5340142321510208162" src="../images/c6cdd438ff07.jpg" style="cursor: pointer; height: 183px; width: 320px;" /></a><br />
+<br />
+<span style="font-family: verdana;">The pointCloudSop is a little VEX script that tests for collisions between points:</span><br />
+<br />
+<blockquote>
+<span style="font-size: 85%;"><span style="font-family: courier new;">#pragma hint filename oppath</span><br /><span style="font-family: courier new;">#pragma hint pscale hidden</span><br /><span style="font-family: courier new;">#pragma hint maxSize hidden</span><br /><span style="font-family: courier new;">sop</span><br /><span style="font-family: courier new;">pointCloudSop(string filename="/obj/geo1/PC";</span><br /><span style="font-family: courier new;">            float pscale = 1;</span><br /><span style="font-family: courier new;">            float radius = 1;</span><br /><span style="font-family: courier new;">            float maxSize = 1;)</span><br /><span style="font-family: courier new;">{</span><br /><span style="font-family: courier new;">    if ( pscale &lt;&gt;<br /><span style="font-family: courier new;">    {</span><br /><span style="font-family: courier new;">        string file = concat("op:", filename);</span><br /><span style="font-family: courier new;">    </span><br /><span style="font-family: courier new;">        float isColliding = 0;</span><br /><br /><span style="font-family: courier new;">        int numpoints = npoints(0)+10;</span><br /><br /><span style="font-family: courier new;">        int pointcloud = pcopen(file, "P", P, radius, numpoints);</span><br /><br /><span style="font-family: courier new;">        while(pciterate(pointcloud))</span><br /><span style="font-family: courier new;">        {</span><br /><span style="font-family: courier new;">            float dist;</span><br /><span style="font-family: courier new;">            float otherPscale;</span><br /><span style="font-family: courier new;">        </span><br /><span style="font-family: courier new;">            pcimport(pointcloud, "point.distance", dist);</span><br /><span style="font-family: courier new;">            pcimport(pointcloud, "pscale", otherPscale);</span><br /><span style="font-family: courier new;">        </span><br /><span style="font-family: courier new;">            if ((pscale + otherPscale) &gt; dist) isColliding += 1;</span><br /><span style="font-family: courier new;"> </span><br /><span style="font-family: courier new;">        }</span><br /><br /><span style="font-family: courier new;">        addattribute("isColliding",isColliding);</span><br /><span style="font-family: courier new;">    }</span><br /><br /><span style="font-family: courier new;">}</span></span><br /></span></blockquote>
+<span style="font-family: verdana;">vopsop1 adds growRate to pscale if it is colliding, vopsop2 just maintains roughness if the point is growing and decays it otherwise.</span><br />
+<br />
+<span style="font-family: verdana;">After that, the rest of the SOP network just copies metaballs onto the points. I was using the cookie SOP to get the intersection between the original mesh and the metaballs but the cookie sop was a bit unreliable :/</span><br />
+<br />
+<span style="font-family: verdana;">hipnc file is </span><a href="https://www.oliverwhiddles.com/ihoudini/test1_3.hipnc" style="font-family: verdana;">here</a><br />
+<br />
+<blockquote>
+</blockquote>
+      <div class="post-labels"><span class="post-card-label">dops</span><span class="post-card-label">point cloud</span></div>
+    </article>
+
+    <div style="display:flex;justify-content:space-between;padding:20px 0;font-size:14px;">
+      <div><a href="pbr-fun.html">&larr; PBR fun</a></div>
+      <div></div>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container">
+      <p>Generated by ScrapeFlow</p>
+    </div>
+  </footer>
+</body>
+</html>

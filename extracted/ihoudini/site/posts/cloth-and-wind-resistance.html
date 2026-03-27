@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cloth and wind resistance - I, Houdini</title>
+  <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:wght@400;600&family=Lato:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+:root {
+  --bg: #f5f5f0;
+  --text: #333;
+  --accent: #8b7355;
+  --card-bg: #fff;
+  --border: #e0ddd5;
+  --font-heading: 'EB Garamond', Georgia, serif;
+  --font-body: 'Lato', -apple-system, sans-serif;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: var(--font-body);
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.7;
+  font-size: 16px;
+}
+
+.container {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 0 20px;
+}
+
+/* Header */
+.site-header {
+  background: #8b7355;
+  color: #fff;
+  padding: 40px 0;
+  text-align: center;
+}
+
+.site-title {
+  font-family: var(--font-heading);
+  font-size: 2.5em;
+  font-weight: 400;
+  margin-bottom: 8px;
+}
+
+.site-subtitle {
+  font-size: 14px;
+  opacity: 0.85;
+  max-width: 600px;
+  margin: 0 auto;
+  line-height: 1.5;
+}
+
+/* Navigation */
+nav {
+  background: var(--card-bg);
+  border-bottom: 1px solid var(--border);
+  padding: 12px 0;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+nav .container {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+nav a {
+  color: var(--accent);
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.categories {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.cat-tag {
+  font-size: 11px;
+  background: #f0ede5;
+  color: #8b7355;
+  padding: 2px 8px;
+  border-radius: 3px;
+  text-decoration: none;
+}
+
+/* Post cards */
+.post-list {
+  padding: 30px 0;
+}
+
+.post-card {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  margin-bottom: 24px;
+  overflow: hidden;
+  transition: box-shadow 0.2s;
+}
+
+.post-card:hover {
+  box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+}
+
+.post-card-image {
+  width: 100%;
+  height: 250px;
+  object-fit: cover;
+  display: block;
+}
+
+.post-card-body {
+  padding: 24px;
+}
+
+.post-card-date {
+  font-size: 12px;
+  color: #999;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.post-card-title {
+  font-family: var(--font-heading);
+  font-size: 1.5em;
+  margin: 8px 0;
+}
+
+.post-card-title a {
+  color: var(--text);
+  text-decoration: none;
+}
+
+.post-card-title a:hover {
+  color: var(--accent);
+}
+
+.post-card-excerpt {
+  color: #666;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.post-card-meta {
+  margin-top: 16px;
+  display: flex;
+  gap: 12px;
+}
+
+.post-card-label {
+  font-size: 11px;
+  background: #f0ede5;
+  color: #8b7355;
+  padding: 2px 8px;
+  border-radius: 3px;
+}
+
+/* Single post */
+.post-header {
+  padding: 40px 0 20px;
+}
+
+.post-title {
+  font-family: var(--font-heading);
+  font-size: 2.2em;
+  font-weight: 400;
+  margin-bottom: 8px;
+}
+
+.post-date {
+  color: #999;
+  font-size: 14px;
+}
+
+.post-content {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 32px;
+  margin-bottom: 40px;
+}
+
+.post-content img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 4px;
+  margin: 16px 0;
+}
+
+.post-content iframe {
+  max-width: 100%;
+  margin: 16px 0;
+}
+
+.post-content a {
+  color: var(--accent);
+}
+
+.post-labels {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border);
+}
+
+/* Back link */
+.back-link {
+  display: inline-block;
+  margin-bottom: 20px;
+  color: var(--accent);
+  text-decoration: none;
+  font-size: 14px;
+}
+
+/* Footer */
+.site-footer {
+  text-align: center;
+  padding: 30px 0;
+  font-size: 12px;
+  color: #999;
+  border-top: 1px solid var(--border);
+}
+
+/* Responsive */
+@media (max-width: 600px) {
+  .site-title { font-size: 1.8em; }
+  .post-title { font-size: 1.6em; }
+  .post-content { padding: 20px; }
+  .post-card-image { height: 180px; }
+}
+</style>
+</head>
+<body>
+  <nav>
+    <div class="container">
+      <a href="../index.html">I, Houdini</a>
+    </div>
+  </nav>
+
+  <main class="container">
+    <a href="../index.html" class="back-link">&larr; All Posts</a>
+
+    <header class="post-header">
+      <h1 class="post-title">Cloth and wind resistance</h1>
+      <div class="post-date">May 29, 2009 &middot; Sam</div>
+    </header>
+
+    <article class="post-content">
+      <span style="font-family: verdana;">Normally a cloth like this:</span><br />
+<br />
+<a href="https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEi6Zome5m7IrDwVVDEYbd8TxgtXQIIwwT5kOEAQcqTST6CNK_ncxydm1nK1JRWWcWSwruwaYvJo6B4DFlKTXAkPTV9JVYOVL8GeBUZtEAMclOxB_MTu7TJMLQ69-v_fhTrVh5ELDXGAFbo/s1600-h/cloth+object.JPG"><img alt="" border="0" id="BLOGGER_PHOTO_ID_5341456751683112034" src="../images/f7bac4389d6a.jpg" style="cursor: pointer; height: 282px; width: 320px;" /></a><br />
+<br />
+<span style="font-family: verdana;">would just fall and retain this exact shape... I put together a little force using the field force DOP and a little sopnet to get a basic simulation of wind resistance as it falls.</span><br />
+<br />
+<span style="font-family: verdana;">The force is applied along the normal, opposing the velocity. It is also scaled by velocity.</span><br />
+<br />
+<span style="font-family: verdana;">Here is an example:</span><br />
+<br />
+<a href="https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEjrWK4mgo9ZQ3txaBfp1cOOyotMnq3f1oVhfVpqbj0wImkobKgb60TT9lxP4n5MH23wdUMIS9F1nx7uYK4-QmnqCLV4Vc-4F9KZVIFZ0WLG820RnficjKf6Ypl0Sqa8slpjqcDq1CHcNJM/s1600-h/resistance_force.JPG"><img alt="" border="0" id="BLOGGER_PHOTO_ID_5341457760594483698" src="../images/99fecbc35f7a.jpg" style="cursor: pointer; height: 320px; width: 316px;" /></a><br />
+<br />
+<span style="font-family: verdana;">Blue is the point normal, green is the velocity and red is the force to be applied.</span><br />
+<br />
+<span style="font-family: verdana;">This is far from correct but it works alright in practice.</span><br />
+<br />
+<span style="font-family: verdana;">This cloth is 2m x 1m and low density (less than a kg total I think)</span><br />
+<br />
+<iframe allowfullscreen='allowfullscreen' webkitallowfullscreen='webkitallowfullscreen' mozallowfullscreen='mozallowfullscreen' width='320' height='266' src='https://www.blogger.com/video.g?token=AD6v5dzdMWgs6QvHvlvKxqlgZZaAmwkjSpDytREv28nOaxu3R7Cw_8qMZy6lW8x5Nb8acqIm6LYNDD8KPgh5Mlqm' class='b-hbp-video b-uploaded' frameborder='0'></iframe><br />
+<br />
+<span style="font-family: verdana;">hipnc file is </span><a href="https://www.oliverwhiddles.com/ihoudini/clothTest2.hipnc" style="font-family: verdana;">here!</a>
+      <div class="post-labels"><span class="post-card-label">cloth</span><span class="post-card-label">dops</span></div>
+    </article>
+
+    <div style="display:flex;justify-content:space-between;padding:20px 0;font-size:14px;">
+      <div><a href="cloth-wind-shadowing.html">&larr; Cloth wind shadowing</a></div>
+      <div><a href="pbr-fun.html">PBR fun &rarr;</a></div>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container">
+      <p>Generated by ScrapeFlow</p>
+    </div>
+  </footer>
+</body>
+</html>

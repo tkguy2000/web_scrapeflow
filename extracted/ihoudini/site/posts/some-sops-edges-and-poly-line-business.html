@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Some SOPs edges and poly line business - I, Houdini</title>
+  <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:wght@400;600&family=Lato:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+:root {
+  --bg: #f5f5f0;
+  --text: #333;
+  --accent: #8b7355;
+  --card-bg: #fff;
+  --border: #e0ddd5;
+  --font-heading: 'EB Garamond', Georgia, serif;
+  --font-body: 'Lato', -apple-system, sans-serif;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: var(--font-body);
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.7;
+  font-size: 16px;
+}
+
+.container {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 0 20px;
+}
+
+/* Header */
+.site-header {
+  background: #8b7355;
+  color: #fff;
+  padding: 40px 0;
+  text-align: center;
+}
+
+.site-title {
+  font-family: var(--font-heading);
+  font-size: 2.5em;
+  font-weight: 400;
+  margin-bottom: 8px;
+}
+
+.site-subtitle {
+  font-size: 14px;
+  opacity: 0.85;
+  max-width: 600px;
+  margin: 0 auto;
+  line-height: 1.5;
+}
+
+/* Navigation */
+nav {
+  background: var(--card-bg);
+  border-bottom: 1px solid var(--border);
+  padding: 12px 0;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+nav .container {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+nav a {
+  color: var(--accent);
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.categories {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.cat-tag {
+  font-size: 11px;
+  background: #f0ede5;
+  color: #8b7355;
+  padding: 2px 8px;
+  border-radius: 3px;
+  text-decoration: none;
+}
+
+/* Post cards */
+.post-list {
+  padding: 30px 0;
+}
+
+.post-card {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  margin-bottom: 24px;
+  overflow: hidden;
+  transition: box-shadow 0.2s;
+}
+
+.post-card:hover {
+  box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+}
+
+.post-card-image {
+  width: 100%;
+  height: 250px;
+  object-fit: cover;
+  display: block;
+}
+
+.post-card-body {
+  padding: 24px;
+}
+
+.post-card-date {
+  font-size: 12px;
+  color: #999;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.post-card-title {
+  font-family: var(--font-heading);
+  font-size: 1.5em;
+  margin: 8px 0;
+}
+
+.post-card-title a {
+  color: var(--text);
+  text-decoration: none;
+}
+
+.post-card-title a:hover {
+  color: var(--accent);
+}
+
+.post-card-excerpt {
+  color: #666;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.post-card-meta {
+  margin-top: 16px;
+  display: flex;
+  gap: 12px;
+}
+
+.post-card-label {
+  font-size: 11px;
+  background: #f0ede5;
+  color: #8b7355;
+  padding: 2px 8px;
+  border-radius: 3px;
+}
+
+/* Single post */
+.post-header {
+  padding: 40px 0 20px;
+}
+
+.post-title {
+  font-family: var(--font-heading);
+  font-size: 2.2em;
+  font-weight: 400;
+  margin-bottom: 8px;
+}
+
+.post-date {
+  color: #999;
+  font-size: 14px;
+}
+
+.post-content {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 32px;
+  margin-bottom: 40px;
+}
+
+.post-content img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 4px;
+  margin: 16px 0;
+}
+
+.post-content iframe {
+  max-width: 100%;
+  margin: 16px 0;
+}
+
+.post-content a {
+  color: var(--accent);
+}
+
+.post-labels {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border);
+}
+
+/* Back link */
+.back-link {
+  display: inline-block;
+  margin-bottom: 20px;
+  color: var(--accent);
+  text-decoration: none;
+  font-size: 14px;
+}
+
+/* Footer */
+.site-footer {
+  text-align: center;
+  padding: 30px 0;
+  font-size: 12px;
+  color: #999;
+  border-top: 1px solid var(--border);
+}
+
+/* Responsive */
+@media (max-width: 600px) {
+  .site-title { font-size: 1.8em; }
+  .post-title { font-size: 1.6em; }
+  .post-content { padding: 20px; }
+  .post-card-image { height: 180px; }
+}
+</style>
+</head>
+<body>
+  <nav>
+    <div class="container">
+      <a href="../index.html">I, Houdini</a>
+    </div>
+  </nav>
+
+  <main class="container">
+    <a href="../index.html" class="back-link">&larr; All Posts</a>
+
+    <header class="post-header">
+      <h1 class="post-title">Some SOPs edges and poly line business</h1>
+      <div class="post-date">November 13, 2013 &middot; Sam</div>
+    </header>
+
+    <article class="post-content">
+      Every time I go to extract the border from a mesh I always end up using some strange combo of Group unshared edges, delete and dissolve, I came across a good way of getting unshared edges that I haven't thought of before, and now it seems really obvious ... using the polycap node to trace the border and then deleting all of the source prims, works like a charm!<br />
+<br />
+<br />
+<table>
+<tbody>
+<tr>
+<td><a href="https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEjsgrsgmvEPQ5Ss4cG8enP3JbWG-EvHDlQ8nsnTydq0guBUnSdrO9upXhU7h53NJ_8SzVjLnrMWTQ3JtfdEuHr7cXW9Eiq96ut5qUJLX5yS1Bv27vDFvKg0e4MKFNMabO4bvZomKM6Mkac/s1600/edges.PNG" imageanchor="1" style="clear: right; float: right; margin-bottom: 1em; margin-left: 1em; text-align: right;"><img border="0" height="200" src="../images/51f11b44bed3.png" width="188" /></a>
+</td>
+<td><a href="https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEj85dJUTP3LUlF_9Jmrrl1Q3Z95q3LQ6oXgue9I7sBKblsoMAFaGr_I71apIRvkhVLjpMDHsVjcflZ8EwQiZ3lzZ0c5FHQf0QOxhRT98j7EN2ZtogOqPhcjABbLLtXolbuJzI34gXlLdMI/s1600/edgesNet.PNG" imageanchor="1" style="clear: right; float: right; margin-bottom: 1em; margin-left: 1em;"><img border="0" height="160" src="../images/dca08507d1a0.png" width="200" /></a>
+</td>
+<td><a href="https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEiG-fAzmJdUyIYsv6myz_7FFKBDoeYgDb9S_wPWt67Gg2xFkJFQre3TGXjOFVbCHK35RMBCa0IU1jRqHDanXzpUNWO5lW8PpHSc7GGdBTn5Bjxf4RlA713X7zEOXpLPLYMszqYCk2JcYJE/s1600/edgesDone.PNG" imageanchor="1" style="clear: right; float: right; margin-bottom: 1em; margin-left: 1em;"><img border="0" height="195" src="../images/173016df38f4.png" width="200" /></a>
+</td>
+</tr>
+</tbody></table>
+<br />
+<div>
+I have also usually had trouble with splitting up a line into multiple primitives, here is a way to create a primitive per edge. This example only works if every point has 2 neighbours but could easily be modified with a copy SOP to allow a dynamic amount of neighbours. (instead of 2 vopsops and a merge to duplicate the points).</div>
+<div>
+<br /></div>
+<div>
+It works like this:</div>
+<div>
+<br />
+<ol>
+<li>The point number is stored in an attribute to create a unique number for each point</li>
+<li>The whole mesh goes into 2 streams to duplicate every point.</li>
+<li>For the first set of points, each point gets the point number of the first neighbour and applies a <a href="http://en.wikipedia.org/wiki/Cantor_pairing_function#Cantor_pairing_function" target="_blank">cantor function</a> to create a unique number for each edge. (just think of the point numbers as X and Y on a table and the returned number is the index number of the location in the table)</li>
+<li>The second set of points does the same for the second neighbor.</li>
+<li>The add SOP creates polylines between points with the same value ....&nbsp;</li>
+</ol>
+</div>
+<div>
+<br /></div>
+<div>
+One thing to note is that the vop sop does a min and max to sort the point numbers going into the function, that way the points on either side of the edge return the same value and get connected.<br />
+<br /></div>
+<table>
+<tbody>
+<tr>
+<td><a href="https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEh3nJdfuheq9-z4ZYi6sJ8Lzytcv6Md0QAXQFtluOdef4GHakyIsDs_gHElrk0WdWzsCcpHigcFy5XQXsYWhDSN_SWDwJ6rm40raxXTeOpdzZjEI4D693XhUWipjW3DmHsFjR3xCbfQEFM/s1600/primPerEdgeNet.PNG" imageanchor="1" style="margin-left: 1em; margin-right: 1em;"><img border="0" height="320" src="../images/c6d759caa0d3.png" width="267" /></a>
+</td>
+<td><a href="https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEjhk1lGxblN-nI8IGedyLTvMn-KdjMBNTpWsBlII9Ua251TcB_Mz_BrRO4GqGpL9cZ3gyzrx6UwOzrmlP3YXTAXekGQEehtSBog2dlSV2UsEdLlnOceGJlRlcin7u4YTI9NmfUfiW98IiM/s1600/primPerEdgeDone.PNG" imageanchor="1" style="margin-left: 1em; margin-right: 1em;"><img border="0" height="316" src="../images/b7bb406bb050.png" width="320" /></a>
+</td>
+</tr>
+</tbody></table>
+<br />
+<a href="https://www.oliverwhiddles.com/ihoudini/tear_12.5_shade2.hipnc" target="_blank">get the hip file here!</a>
+      <div class="post-labels"></div>
+    </article>
+
+    <div style="display:flex;justify-content:space-between;padding:20px 0;font-size:14px;">
+      <div><a href="cloth-tear-geometry-and-shading-detail.html">&larr; Cloth tear geometry and shading detail</a></div>
+      <div><a href="sop-solver-cloth-tearing.html">Sop solver cloth tearing &rarr;</a></div>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container">
+      <p>Generated by ScrapeFlow</p>
+    </div>
+  </footer>
+</body>
+</html>

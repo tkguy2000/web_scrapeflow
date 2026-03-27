@@ -1,0 +1,590 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>I, Houdini</title>
+  <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:wght@400;600&family=Lato:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+:root {
+  --bg: #f5f5f0;
+  --text: #333;
+  --accent: #8b7355;
+  --card-bg: #fff;
+  --border: #e0ddd5;
+  --font-heading: 'EB Garamond', Georgia, serif;
+  --font-body: 'Lato', -apple-system, sans-serif;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: var(--font-body);
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.7;
+  font-size: 16px;
+}
+
+.container {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 0 20px;
+}
+
+/* Header */
+.site-header {
+  background: #8b7355;
+  color: #fff;
+  padding: 40px 0;
+  text-align: center;
+}
+
+.site-title {
+  font-family: var(--font-heading);
+  font-size: 2.5em;
+  font-weight: 400;
+  margin-bottom: 8px;
+}
+
+.site-subtitle {
+  font-size: 14px;
+  opacity: 0.85;
+  max-width: 600px;
+  margin: 0 auto;
+  line-height: 1.5;
+}
+
+/* Navigation */
+nav {
+  background: var(--card-bg);
+  border-bottom: 1px solid var(--border);
+  padding: 12px 0;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+nav .container {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+nav a {
+  color: var(--accent);
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.categories {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.cat-tag {
+  font-size: 11px;
+  background: #f0ede5;
+  color: #8b7355;
+  padding: 2px 8px;
+  border-radius: 3px;
+  text-decoration: none;
+}
+
+/* Post cards */
+.post-list {
+  padding: 30px 0;
+}
+
+.post-card {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  margin-bottom: 24px;
+  overflow: hidden;
+  transition: box-shadow 0.2s;
+}
+
+.post-card:hover {
+  box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+}
+
+.post-card-image {
+  width: 100%;
+  height: 250px;
+  object-fit: cover;
+  display: block;
+}
+
+.post-card-body {
+  padding: 24px;
+}
+
+.post-card-date {
+  font-size: 12px;
+  color: #999;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.post-card-title {
+  font-family: var(--font-heading);
+  font-size: 1.5em;
+  margin: 8px 0;
+}
+
+.post-card-title a {
+  color: var(--text);
+  text-decoration: none;
+}
+
+.post-card-title a:hover {
+  color: var(--accent);
+}
+
+.post-card-excerpt {
+  color: #666;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.post-card-meta {
+  margin-top: 16px;
+  display: flex;
+  gap: 12px;
+}
+
+.post-card-label {
+  font-size: 11px;
+  background: #f0ede5;
+  color: #8b7355;
+  padding: 2px 8px;
+  border-radius: 3px;
+}
+
+/* Single post */
+.post-header {
+  padding: 40px 0 20px;
+}
+
+.post-title {
+  font-family: var(--font-heading);
+  font-size: 2.2em;
+  font-weight: 400;
+  margin-bottom: 8px;
+}
+
+.post-date {
+  color: #999;
+  font-size: 14px;
+}
+
+.post-content {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 32px;
+  margin-bottom: 40px;
+}
+
+.post-content img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 4px;
+  margin: 16px 0;
+}
+
+.post-content iframe {
+  max-width: 100%;
+  margin: 16px 0;
+}
+
+.post-content a {
+  color: var(--accent);
+}
+
+.post-labels {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border);
+}
+
+/* Back link */
+.back-link {
+  display: inline-block;
+  margin-bottom: 20px;
+  color: var(--accent);
+  text-decoration: none;
+  font-size: 14px;
+}
+
+/* Footer */
+.site-footer {
+  text-align: center;
+  padding: 30px 0;
+  font-size: 12px;
+  color: #999;
+  border-top: 1px solid var(--border);
+}
+
+/* Responsive */
+@media (max-width: 600px) {
+  .site-title { font-size: 1.8em; }
+  .post-title { font-size: 1.6em; }
+  .post-content { padding: 20px; }
+  .post-card-image { height: 180px; }
+}
+</style>
+</head>
+<body>
+  <header class="site-header">
+    <div class="container">
+      <h1 class="site-title">I, Houdini</h1>
+      <p class="site-subtitle">There is no doubt that Houdini is a most unusual creature, for this is a hamster with an advanced vocabulary and a terribly immodest opinion of his own superior brain power. Houdini believes without question that hamsters are a higher form of life than humans. He is, however, a kindhearted creature (generally speaking) and tolerates the bumbling ways of humans well enough.</p>
+    </div>
+  </header>
+
+  <nav>
+    <div class="container">
+      <a href="index.html">I, Houdini</a>
+      <div class="categories"><span class="cat-tag">HDRI</span><span class="cat-tag">PBR</span><span class="cat-tag">cloth</span><span class="cat-tag">curvature</span><span class="cat-tag">dops</span><span class="cat-tag">linear</span><span class="cat-tag">lsystem</span><span class="cat-tag">occlusion</span><span class="cat-tag">plants</span><span class="cat-tag">point cloud</span><span class="cat-tag">pointcloud</span><span class="cat-tag">pops</span><span class="cat-tag">pops vopsop</span><span class="cat-tag">rbd</span><span class="cat-tag">shader</span></div>
+    </div>
+  </nav>
+
+  <main class="container post-list">
+    
+    <article class="post-card">
+      <img class="post-card-image" src="images/34dfde001f34.png" alt="More drawing with a  wacom in Houdini" loading="lazy">
+      <div class="post-card-body">
+        <div class="post-card-date">January 19, 2020</div>
+        <h2 class="post-card-title"><a href="posts/more-drawing-with-a-wacom-in-houdini.html">More drawing with a  wacom in Houdini</a></h2>
+        <p class="post-card-excerpt">I have been improving the wacom python panel I posted about last time -- to try to solve the issues with the number of nodes I would end up with, also the file size of the .hip files were too large.
+
+In the last version, I was saving the curve data as a string on the SOP node, but this made for larg...</p>
+        <div class="post-card-meta"></div>
+      </div>
+    </article>
+    <article class="post-card">
+      <img class="post-card-image" src="images/b64390c5159a.png" alt="Drawing with a wacom in Houdini" loading="lazy">
+      <div class="post-card-body">
+        <div class="post-card-date">January 04, 2020</div>
+        <h2 class="post-card-title"><a href="posts/drawing-with-a-wacom-in-houdini.html">Drawing with a wacom in Houdini</a></h2>
+        <p class="post-card-excerpt">It's been ages since I posted last, I haven't been doing much Houdini at home in the last few years. I got an Indie licence to make some content for other things I am doing, so I will be doing more in Houdini now -- and whenever I find something that is a bit interesting or might be useful for someo...</p>
+        <div class="post-card-meta"></div>
+      </div>
+    </article>
+    <article class="post-card">
+      
+      <div class="post-card-body">
+        <div class="post-card-date">December 16, 2013</div>
+        <h2 class="post-card-title"><a href="posts/worm-locomotion-with-fem.html">Worm locomotion with FEM</a></h2>
+        <p class="post-card-excerpt">I have always wanted to do a dynamic locomotion setup, I have tried in the past with wire and sop solver with .... interesting results ;)
+
+With FEM in Houdini 13, the rest attribute is stored on vertices which allows a tetra to change its rest state independently of the surrounding tetras. With this...</p>
+        <div class="post-card-meta"></div>
+      </div>
+    </article>
+    <article class="post-card">
+      <img class="post-card-image" src="images/31d06d0c621a.png" alt="Cloth tear geometry and shading detail" loading="lazy">
+      <div class="post-card-body">
+        <div class="post-card-date">November 22, 2013</div>
+        <h2 class="post-card-title"><a href="posts/cloth-tear-geometry-and-shading-detail.html">Cloth tear geometry and shading detail</a></h2>
+        <p class="post-card-excerpt">Been adding geo detail to the torn cloth and shading the additional geo. Shading sure is fun! :)
+
+
+
+Thickness added to the cloth geo
+
+
+
+Extrude sides are extruded out again&nbsp;
+
+The second extrusion is done twice, once for the U direction, and once for the V direction. Polyframe is used to get the...</p>
+        <div class="post-card-meta"></div>
+      </div>
+    </article>
+    <article class="post-card">
+      <img class="post-card-image" src="images/51f11b44bed3.png" alt="Some SOPs edges and poly line business" loading="lazy">
+      <div class="post-card-body">
+        <div class="post-card-date">November 13, 2013</div>
+        <h2 class="post-card-title"><a href="posts/some-sops-edges-and-poly-line-business.html">Some SOPs edges and poly line business</a></h2>
+        <p class="post-card-excerpt">Every time I go to extract the border from a mesh I always end up using some strange combo of Group unshared edges, delete and dissolve, I came across a good way of getting unshared edges that I haven't thought of before, and now it seems really obvious ... using the polycap node to trace the border...</p>
+        <div class="post-card-meta"></div>
+      </div>
+    </article>
+    <article class="post-card">
+      <img class="post-card-image" src="images/478b9a7982ac.png" alt="Sop solver cloth tearing" loading="lazy">
+      <div class="post-card-body">
+        <div class="post-card-date">November 13, 2013</div>
+        <h2 class="post-card-title"><a href="posts/sop-solver-cloth-tearing.html">Sop solver cloth tearing</a></h2>
+        <p class="post-card-excerpt">Finally back to doing some Houdini at home! woo!
+
+I was going to do some cloth shading but got sidetracked and started playing around with some cloth tearing instead. I went back to H12.5 as 13 wasn't working for fracturing ... or I was missing something obvious!
+
+The idea is to cusp edges perpendic...</p>
+        <div class="post-card-meta"></div>
+      </div>
+    </article>
+    <article class="post-card">
+      
+      <div class="post-card-body">
+        <div class="post-card-date">October 29, 2011</div>
+        <h2 class="post-card-title"><a href="posts/wire-to-rbd-feedback-in-dops.html">Wire to RBD feedback in DOPs</a></h2>
+        <p class="post-card-excerpt">
+
+Normally if a wire is constrained to an RBD, the rbd isn't affected by the wire at all. Which is annoying ... but I had an idea to get it to work. the wire solver can store the internal forces on the geometry. In DOPs I made a point force, the position is set to the position of the constraint and ...</p>
+        <div class="post-card-meta"></div>
+      </div>
+    </article>
+    <article class="post-card">
+      
+      <div class="post-card-body">
+        <div class="post-card-date">October 29, 2011</div>
+        <h2 class="post-card-title"><a href="posts/snapping-wires.html">Snapping Wires</a></h2>
+        <p class="post-card-excerpt">Here is a setup that does snapping wires...
+
+
+
+Wires are pre-cut and the cuts get constrained together, in DOPs a sop solver removes points from the constraint groups based on how much the edge length is stretched. The tricky part about this is that the groups have to correspond exactly so that the ...</p>
+        <div class="post-card-meta"></div>
+      </div>
+    </article>
+    <article class="post-card">
+      
+      <div class="post-card-body">
+        <div class="post-card-date">July 16, 2011</div>
+        <h2 class="post-card-title"><a href="posts/deforming-rbds-again.html">Deforming RBDs again!</a></h2>
+        <p class="post-card-excerpt">In this one I have changed to adding up all of the impacts rather than the mixing that was going on with the attribute transfer in the last one. It is just a vopsop which loops through the impact points and adds up the deformation.
+
+
+
+One problem I was having was when I deformed the object, the cent...</p>
+        <div class="post-card-meta"><span class="post-card-label">dops</span><span class="post-card-label">sop solver</span><span class="post-card-label">sops</span></div>
+      </div>
+    </article>
+    <article class="post-card">
+      
+      <div class="post-card-body">
+        <div class="post-card-date">July 09, 2011</div>
+        <h2 class="post-card-title"><a href="posts/deforming-rbds.html">Deforming RBDs</a></h2>
+        <p class="post-card-excerpt">Simple setup that uses a SOP solver and deforms the geo at points of impact. The impact data is already available in the SOP solver, the normal is the impact direction and there is a pscale attribute for the magnitude of the impact.
+
+
+
+In this setup I just used attributeTransfer to get the impact da...</p>
+        <div class="post-card-meta"><span class="post-card-label">dops</span><span class="post-card-label">rbd</span><span class="post-card-label">sop solver</span></div>
+      </div>
+    </article>
+    <article class="post-card">
+      
+      <div class="post-card-body">
+        <div class="post-card-date">June 11, 2011</div>
+        <h2 class="post-card-title"><a href="posts/new-paper-sim.html">New paper sim</a></h2>
+        <p class="post-card-excerpt">More paper stuff! Updated it, now using a SOP solver to modify the velocity. The last one was a field force which wasn't great.
+
+
+
+Also this one projects the velocity vector onto the surface rather than just applying an opposing force like I was doing before. The velocity ends up perpendicular to th...</p>
+        <div class="post-card-meta"><span class="post-card-label">cloth</span><span class="post-card-label">dops</span><span class="post-card-label">sop solver</span></div>
+      </div>
+    </article>
+    <article class="post-card">
+      
+      <div class="post-card-body">
+        <div class="post-card-date">June 09, 2011</div>
+        <h2 class="post-card-title"><a href="posts/more-old-cloth-wind-resistance-stuff.html">More old cloth wind resistance stuff.</a></h2>
+        <p class="post-card-excerpt">Haven't posted in a long time, easing back into it with something I was playing with about a year ago ... it uses the same wind resistance stuff that I was using earlier.Going to update it in the next few days with a much better way of doing it with a SOP solver!Houdini - Cloth paper thingy from Sam...</p>
+        <div class="post-card-meta"><span class="post-card-label">cloth</span><span class="post-card-label">dops</span><span class="post-card-label">wedge rop</span></div>
+      </div>
+    </article>
+    <article class="post-card">
+      
+      <div class="post-card-body">
+        <div class="post-card-date">February 06, 2010</div>
+        <h2 class="post-card-title"><a href="posts/wormie-wire-solver-things.html">Wormie wire solver things.</a></h2>
+        <p class="post-card-excerpt">Just another random thing.
+
+
+
+
+
+Houdini - Wire solver worms from Sam Hancock on Vimeo.
+This starts as some vertcal lines in SOPs that are animating upwards. The 'constraintoanimation' attribute is switched to 0 when the points go above the ground plane. This goes into the wire solver and thats about...</p>
+        <div class="post-card-meta"></div>
+      </div>
+    </article>
+    <article class="post-card">
+      <img class="post-card-image" src="images/d5598f0bc0de.jpg" alt="Dijkstra pathfinding with python." loading="lazy">
+      <div class="post-card-body">
+        <div class="post-card-date">February 05, 2010</div>
+        <h2 class="post-card-title"><a href="posts/dijkstra-pathfinding-with-python.html">Dijkstra pathfinding with python.</a></h2>
+        <p class="post-card-excerpt">I have a lot of half finished things floating around, here is one of them...
+
+Been seeing the dijkstra algorithm around a bit lately, so I had a go at implementing it in Houdini.
+
+http://en.wikipedia.org/wiki/Dijkstra%27s_algorithm
+
+Most of it is in python. ~2000 points and it cooks in about 1.2s so...</p>
+        <div class="post-card-meta"></div>
+      </div>
+    </article>
+    <article class="post-card">
+      <img class="post-card-image" src="images/6c19cf759388.jpg" alt="Wire solver and wire deformer." loading="lazy">
+      <div class="post-card-body">
+        <div class="post-card-date">September 05, 2009</div>
+        <h2 class="post-card-title"><a href="posts/wire-solver-and-wire-deformer.html">Wire solver and wire deformer.</a></h2>
+        <p class="post-card-excerpt">Just playing around with the wire solver and deforming wires onto wires...
+
+
+
+rendered as tube primitives, 2 area lights and an env light, took about an hour to render 2K :/
+
+hipnc is here...</p>
+        <div class="post-card-meta"></div>
+      </div>
+    </article>
+    <article class="post-card">
+      <img class="post-card-image" src="images/7e57d7b59f57.jpg" alt="Wear Shader #2" loading="lazy">
+      <div class="post-card-body">
+        <div class="post-card-date">August 26, 2009</div>
+        <h2 class="post-card-title"><a href="posts/wear-shader-2.html">Wear Shader #2</a></h2>
+        <p class="post-card-excerpt">Just messing about with the shader ...Did a few things like darkening the paint where it is worn, darkening the reflection, adding displacements to the steel etc. .........</p>
+        <div class="post-card-meta"></div>
+      </div>
+    </article>
+    <article class="post-card">
+      <img class="post-card-image" src="images/f471abded703.jpg" alt="Wear Shader" loading="lazy">
+      <div class="post-card-body">
+        <div class="post-card-date">August 25, 2009</div>
+        <h2 class="post-card-title"><a href="posts/wear-shader.html">Wear Shader</a></h2>
+        <p class="post-card-excerpt">Just playing around with shaders - curvature and occlusion in SOPs to make a wear shader.
+
+In SOPs, made a little curvature vopsop. It is a vopsop to do curvature since the curvature SOP doesn't give a normalised result.
+
+Inside the vopsop, the neighbors of a point are looped through and the dot pro...</p>
+        <div class="post-card-meta"><span class="post-card-label">curvature</span><span class="post-card-label">occlusion</span><span class="post-card-label">PBR</span></div>
+      </div>
+    </article>
+    <article class="post-card">
+      <img class="post-card-image" src="images/6fa1405992b1.jpg" alt="Random #1" loading="lazy">
+      <div class="post-card-body">
+        <div class="post-card-date">August 24, 2009</div>
+        <h2 class="post-card-title"><a href="posts/random-1.html">Random #1</a></h2>
+        <p class="post-card-excerpt">Was throwing together a wood shader and came across a happy accident :D...</p>
+        <div class="post-card-meta"></div>
+      </div>
+    </article>
+    <article class="post-card">
+      <img class="post-card-image" src="images/54f25f8f9d97.jpg" alt="Particle motion blur again and some point cloud lighting" loading="lazy">
+      <div class="post-card-body">
+        <div class="post-card-date">August 16, 2009</div>
+        <h2 class="post-card-title"><a href="posts/particle-motion-blur-again-and-some-point-cloud-lighting.html">Particle motion blur again and some point cloud lighting</a></h2>
+        <p class="post-card-excerpt">Fixed a few things with the particle motion blur stuff. Mostly it was just to get rid of an issue where you could see the particles when rendered zipping back to 0,0,0 when they died. I changed the popnet so that the particles always die when the camera shutter is closed...  I think this was because...</p>
+        <div class="post-card-meta"><span class="post-card-label">pointcloud</span><span class="post-card-label">pops</span><span class="post-card-label">shading</span></div>
+      </div>
+    </article>
+    <article class="post-card">
+      <img class="post-card-image" src="images/8b0a41bb8f1b.jpg" alt="Multi segement motion blur with particles" loading="lazy">
+      <div class="post-card-body">
+        <div class="post-card-date">August 04, 2009</div>
+        <h2 class="post-card-title"><a href="posts/multi-segement-motion-blur-with-particles.html">Multi segement motion blur with particles</a></h2>
+        <p class="post-card-excerpt">
+
+Was trying to find a clean solution to rendering particles with multi segment motion blur, found a way that is quite quick...
+
+A bunch of points are created at 0,0,0. The number of points is equal to the largest ID at the end of the particle sim. 
+
+A VOP SOP loops through the particle sim and trie...</p>
+        <div class="post-card-meta"><span class="post-card-label">pops vopsop</span></div>
+      </div>
+    </article>
+    <article class="post-card">
+      <img class="post-card-image" src="images/7c83e4d3de38.jpg" alt="Growth and L-Systems" loading="lazy">
+      <div class="post-card-body">
+        <div class="post-card-date">June 16, 2009</div>
+        <h2 class="post-card-title"><a href="posts/growth-and-l-systems.html">Growth and L-Systems</a></h2>
+        <p class="post-card-excerpt">Have been reading about l-systems, mostly papers from here. Trying to get segment growth working as described in the growth functions section (1.9) of The Algorithmic Beauty of Plants. I don't understand a lot of it but I think I got the basic idea :D. It was really confusing after a certain point w...</p>
+        <div class="post-card-meta"><span class="post-card-label">lsystem</span><span class="post-card-label">plants</span><span class="post-card-label">sops</span></div>
+      </div>
+    </article>
+    <article class="post-card">
+      
+      <div class="post-card-body">
+        <div class="post-card-date">June 01, 2009</div>
+        <h2 class="post-card-title"><a href="posts/cloth-self-shadowing.html">Cloth self shadowing</a></h2>
+        <p class="post-card-excerpt">This is why Houdini is awesome, one node ignored and changed the bias on the ray SOP, and self shadowing just works :D
+
+
+
+It probably needs a wind location specified so I can timeshift the occluding objects depending on the distance from the wind 'emitter'. meh.
+
+hipnc is here...</p>
+        <div class="post-card-meta"><span class="post-card-label">cloth</span><span class="post-card-label">dops</span></div>
+      </div>
+    </article>
+    <article class="post-card">
+      
+      <div class="post-card-body">
+        <div class="post-card-date">May 31, 2009</div>
+        <h2 class="post-card-title"><a href="posts/cloth-wind-shadowing.html">Cloth wind shadowing</a></h2>
+        <p class="post-card-excerpt">More cloth!
+
+Got some wind shadowing working using the same technique as the wind resistance thing, just with a ray SOP to block the wind.
+
+Currently the wind gets blocked by any other objects in the dopnet. Might add self shadowing next!
+
+
+
+This is with wind resistance from earlier, just adds some ...</p>
+        <div class="post-card-meta"><span class="post-card-label">cloth</span><span class="post-card-label">dops</span></div>
+      </div>
+    </article>
+    <article class="post-card">
+      <img class="post-card-image" src="images/f7bac4389d6a.jpg" alt="Cloth and wind resistance" loading="lazy">
+      <div class="post-card-body">
+        <div class="post-card-date">May 29, 2009</div>
+        <h2 class="post-card-title"><a href="posts/cloth-and-wind-resistance.html">Cloth and wind resistance</a></h2>
+        <p class="post-card-excerpt">Normally a cloth like this:
+
+
+
+would just fall and retain this exact shape... I put together a little force using the field force DOP and a little sopnet to get a basic simulation of wind resistance as it falls.
+
+The force is applied along the normal, opposing the velocity. It is also scaled by velo...</p>
+        <div class="post-card-meta"><span class="post-card-label">cloth</span><span class="post-card-label">dops</span></div>
+      </div>
+    </article>
+    <article class="post-card">
+      <img class="post-card-image" src="images/046b5a78e120.jpg" alt="PBR fun" loading="lazy">
+      <div class="post-card-body">
+        <div class="post-card-date">May 28, 2009</div>
+        <h2 class="post-card-title"><a href="posts/pbr-fun.html">PBR fun</a></h2>
+        <p class="post-card-excerpt">Just playing around with PBR, also was reading about linear colour space so I was also experimenting with doing a sRGB &gt; linear coversion to the textures -- before .rat creation as the mipping is wrong in sRGB. A 2.2 gamma is applied when viewing the render in mplay and also applied when saving a...</p>
+        <div class="post-card-meta"><span class="post-card-label">HDRI</span><span class="post-card-label">linear</span><span class="post-card-label">PBR</span></div>
+      </div>
+    </article>
+    <article class="post-card">
+      <img class="post-card-image" src="images/562a3c212509.jpg" alt="Growing Objects" loading="lazy">
+      <div class="post-card-body">
+        <div class="post-card-date">May 26, 2009</div>
+        <h2 class="post-card-title"><a href="posts/growing-objects.html">Growing Objects</a></h2>
+        <p class="post-card-excerpt">I saw this post over at odforce and have been playing with growing objects in a dynamic way ...
+
+It is basically just points scattered in the volume of an object, then a SOP solver is used to increase a points pscale if it is colliding with another point. Metaballs are copied onto the points, conver...</p>
+        <div class="post-card-meta"><span class="post-card-label">dops</span><span class="post-card-label">point cloud</span></div>
+      </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container">
+      <p>Recreated from I, Houdini | 26 posts | Generated by ScrapeFlow</p>
+    </div>
+  </footer>
+</body>
+</html>

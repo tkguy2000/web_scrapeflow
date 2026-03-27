@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>More drawing with a  wacom in Houdini - I, Houdini</title>
+  <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:wght@400;600&family=Lato:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+:root {
+  --bg: #f5f5f0;
+  --text: #333;
+  --accent: #8b7355;
+  --card-bg: #fff;
+  --border: #e0ddd5;
+  --font-heading: 'EB Garamond', Georgia, serif;
+  --font-body: 'Lato', -apple-system, sans-serif;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: var(--font-body);
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.7;
+  font-size: 16px;
+}
+
+.container {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 0 20px;
+}
+
+/* Header */
+.site-header {
+  background: #8b7355;
+  color: #fff;
+  padding: 40px 0;
+  text-align: center;
+}
+
+.site-title {
+  font-family: var(--font-heading);
+  font-size: 2.5em;
+  font-weight: 400;
+  margin-bottom: 8px;
+}
+
+.site-subtitle {
+  font-size: 14px;
+  opacity: 0.85;
+  max-width: 600px;
+  margin: 0 auto;
+  line-height: 1.5;
+}
+
+/* Navigation */
+nav {
+  background: var(--card-bg);
+  border-bottom: 1px solid var(--border);
+  padding: 12px 0;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+nav .container {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+nav a {
+  color: var(--accent);
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.categories {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.cat-tag {
+  font-size: 11px;
+  background: #f0ede5;
+  color: #8b7355;
+  padding: 2px 8px;
+  border-radius: 3px;
+  text-decoration: none;
+}
+
+/* Post cards */
+.post-list {
+  padding: 30px 0;
+}
+
+.post-card {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  margin-bottom: 24px;
+  overflow: hidden;
+  transition: box-shadow 0.2s;
+}
+
+.post-card:hover {
+  box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+}
+
+.post-card-image {
+  width: 100%;
+  height: 250px;
+  object-fit: cover;
+  display: block;
+}
+
+.post-card-body {
+  padding: 24px;
+}
+
+.post-card-date {
+  font-size: 12px;
+  color: #999;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.post-card-title {
+  font-family: var(--font-heading);
+  font-size: 1.5em;
+  margin: 8px 0;
+}
+
+.post-card-title a {
+  color: var(--text);
+  text-decoration: none;
+}
+
+.post-card-title a:hover {
+  color: var(--accent);
+}
+
+.post-card-excerpt {
+  color: #666;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.post-card-meta {
+  margin-top: 16px;
+  display: flex;
+  gap: 12px;
+}
+
+.post-card-label {
+  font-size: 11px;
+  background: #f0ede5;
+  color: #8b7355;
+  padding: 2px 8px;
+  border-radius: 3px;
+}
+
+/* Single post */
+.post-header {
+  padding: 40px 0 20px;
+}
+
+.post-title {
+  font-family: var(--font-heading);
+  font-size: 2.2em;
+  font-weight: 400;
+  margin-bottom: 8px;
+}
+
+.post-date {
+  color: #999;
+  font-size: 14px;
+}
+
+.post-content {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 32px;
+  margin-bottom: 40px;
+}
+
+.post-content img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 4px;
+  margin: 16px 0;
+}
+
+.post-content iframe {
+  max-width: 100%;
+  margin: 16px 0;
+}
+
+.post-content a {
+  color: var(--accent);
+}
+
+.post-labels {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border);
+}
+
+/* Back link */
+.back-link {
+  display: inline-block;
+  margin-bottom: 20px;
+  color: var(--accent);
+  text-decoration: none;
+  font-size: 14px;
+}
+
+/* Footer */
+.site-footer {
+  text-align: center;
+  padding: 30px 0;
+  font-size: 12px;
+  color: #999;
+  border-top: 1px solid var(--border);
+}
+
+/* Responsive */
+@media (max-width: 600px) {
+  .site-title { font-size: 1.8em; }
+  .post-title { font-size: 1.6em; }
+  .post-content { padding: 20px; }
+  .post-card-image { height: 180px; }
+}
+</style>
+</head>
+<body>
+  <nav>
+    <div class="container">
+      <a href="../index.html">I, Houdini</a>
+    </div>
+  </nav>
+
+  <main class="container">
+    <a href="../index.html" class="back-link">&larr; All Posts</a>
+
+    <header class="post-header">
+      <h1 class="post-title">More drawing with a  wacom in Houdini</h1>
+      <div class="post-date">January 19, 2020 &middot; Sam</div>
+    </header>
+
+    <article class="post-content">
+      I have been improving the wacom python panel I posted about last time -- to try to solve the issues with the number of nodes I would end up with, also the file size of the .hip files were too large.<br />
+<br />
+In the last version, I was saving the curve data as a string on the SOP node, but this made for large files sizes. I was also using the parms on the SOP node to configure a bunch of things for the line (like the duplication, taper and width settings.) which caused me to have to create too many nodes when I wanted to vary the settings.<br />
+<br />
+I am now using the "geometry data" parm type on the SOP node to save the curve data. I am storing all of the configuration (duplication, tapering, width etc) in primitive data and have moved the settings to the python panel interface, rather than the SOP interface.<br />
+<br />
+This means that I don't have to create a new node to have different settings for a curve.<br />
+<br />
+I needed to add a selection tool, curve tool, and a freehand tool to the opython interface to cover all of the cases I needed.<br />
+<br />
+The toggles on the interface for duplication and tapering are just settings on each prim -- each time the selection changes the interface changes to reflect the settings on the current prim.<br />
+<br />
+Here is the new interface:<br />
+<br />
+<div class="separator" style="clear: both; text-align: center;">
+<a href="https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEi-PelztrKRMgl9A2YMmqNWmDPYfJtQGCmKmWEOjHtQRMcW-LS3dha0wnUsHVHchXggzBKPo9tSpL8vSvUkMpWS5XWE3GaDIY5VPdoAxgDUUczWWPw7WEPSovsqVzNME5XUJNVs9sWVWYo/s1600/newInterface.png" imageanchor="1" style="margin-left: 1em; margin-right: 1em;"><img border="0" data-original-height="739" data-original-width="962" height="489" src="../images/34dfde001f34.png" width="640" /></a></div>
+<br />
+<br />
+The icon images for the interface are saved into the SOP OTL, which is a bit strange, but I couldn't figure out how to get QT to load images from disk -- it would work if I gave it the full path to the images but I couldn't find out how to do a relative reference.<br />
+<br />
+The python panel stores its own copy of the curve data in a hou.geometry() object, and copies it to the SOP node to 'export' to the node.<br />
+<br />
+Each prim also stores the time that it was drawn (relative to when the panel was opened), The points also store the time that they were drawn since the start of the curve, so that the curve drawing can be replayed.<br />
+<br />
+I have remapped the times and compressed it all a bit to animate the drawing of the constellation, like in the following video:<br />
+<br />
+<iframe allow="autoplay; fullscreen" allowfullscreen="" frameborder="0" height="360" src="https://player.vimeo.com/video/385783320" width="640"></iframe>
+
+<br />
+My plan eventually is to animate the reveal of the constellation drawing based on the proximity to stars. I want to do this in realtime so I will need to bake all of this data into a texture.<br />
+<br />
+<a href="https://www.oliverwhiddles.com/ihoudini/drawStrokes2.zip" target="_blank">The new .pypanel and .otl can be downloaded here</a><br />
+<br />
+<br />
+      <div class="post-labels"></div>
+    </article>
+
+    <div style="display:flex;justify-content:space-between;padding:20px 0;font-size:14px;">
+      <div></div>
+      <div><a href="drawing-with-a-wacom-in-houdini.html">Drawing with a wacom in Houdini &rarr;</a></div>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container">
+      <p>Generated by ScrapeFlow</p>
+    </div>
+  </footer>
+</body>
+</html>

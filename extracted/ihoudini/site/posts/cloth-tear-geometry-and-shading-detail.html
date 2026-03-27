@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cloth tear geometry and shading detail - I, Houdini</title>
+  <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:wght@400;600&family=Lato:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+:root {
+  --bg: #f5f5f0;
+  --text: #333;
+  --accent: #8b7355;
+  --card-bg: #fff;
+  --border: #e0ddd5;
+  --font-heading: 'EB Garamond', Georgia, serif;
+  --font-body: 'Lato', -apple-system, sans-serif;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: var(--font-body);
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.7;
+  font-size: 16px;
+}
+
+.container {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 0 20px;
+}
+
+/* Header */
+.site-header {
+  background: #8b7355;
+  color: #fff;
+  padding: 40px 0;
+  text-align: center;
+}
+
+.site-title {
+  font-family: var(--font-heading);
+  font-size: 2.5em;
+  font-weight: 400;
+  margin-bottom: 8px;
+}
+
+.site-subtitle {
+  font-size: 14px;
+  opacity: 0.85;
+  max-width: 600px;
+  margin: 0 auto;
+  line-height: 1.5;
+}
+
+/* Navigation */
+nav {
+  background: var(--card-bg);
+  border-bottom: 1px solid var(--border);
+  padding: 12px 0;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+nav .container {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+nav a {
+  color: var(--accent);
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.categories {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.cat-tag {
+  font-size: 11px;
+  background: #f0ede5;
+  color: #8b7355;
+  padding: 2px 8px;
+  border-radius: 3px;
+  text-decoration: none;
+}
+
+/* Post cards */
+.post-list {
+  padding: 30px 0;
+}
+
+.post-card {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  margin-bottom: 24px;
+  overflow: hidden;
+  transition: box-shadow 0.2s;
+}
+
+.post-card:hover {
+  box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+}
+
+.post-card-image {
+  width: 100%;
+  height: 250px;
+  object-fit: cover;
+  display: block;
+}
+
+.post-card-body {
+  padding: 24px;
+}
+
+.post-card-date {
+  font-size: 12px;
+  color: #999;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.post-card-title {
+  font-family: var(--font-heading);
+  font-size: 1.5em;
+  margin: 8px 0;
+}
+
+.post-card-title a {
+  color: var(--text);
+  text-decoration: none;
+}
+
+.post-card-title a:hover {
+  color: var(--accent);
+}
+
+.post-card-excerpt {
+  color: #666;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.post-card-meta {
+  margin-top: 16px;
+  display: flex;
+  gap: 12px;
+}
+
+.post-card-label {
+  font-size: 11px;
+  background: #f0ede5;
+  color: #8b7355;
+  padding: 2px 8px;
+  border-radius: 3px;
+}
+
+/* Single post */
+.post-header {
+  padding: 40px 0 20px;
+}
+
+.post-title {
+  font-family: var(--font-heading);
+  font-size: 2.2em;
+  font-weight: 400;
+  margin-bottom: 8px;
+}
+
+.post-date {
+  color: #999;
+  font-size: 14px;
+}
+
+.post-content {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 32px;
+  margin-bottom: 40px;
+}
+
+.post-content img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 4px;
+  margin: 16px 0;
+}
+
+.post-content iframe {
+  max-width: 100%;
+  margin: 16px 0;
+}
+
+.post-content a {
+  color: var(--accent);
+}
+
+.post-labels {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border);
+}
+
+/* Back link */
+.back-link {
+  display: inline-block;
+  margin-bottom: 20px;
+  color: var(--accent);
+  text-decoration: none;
+  font-size: 14px;
+}
+
+/* Footer */
+.site-footer {
+  text-align: center;
+  padding: 30px 0;
+  font-size: 12px;
+  color: #999;
+  border-top: 1px solid var(--border);
+}
+
+/* Responsive */
+@media (max-width: 600px) {
+  .site-title { font-size: 1.8em; }
+  .post-title { font-size: 1.6em; }
+  .post-content { padding: 20px; }
+  .post-card-image { height: 180px; }
+}
+</style>
+</head>
+<body>
+  <nav>
+    <div class="container">
+      <a href="../index.html">I, Houdini</a>
+    </div>
+  </nav>
+
+  <main class="container">
+    <a href="../index.html" class="back-link">&larr; All Posts</a>
+
+    <header class="post-header">
+      <h1 class="post-title">Cloth tear geometry and shading detail</h1>
+      <div class="post-date">November 22, 2013 &middot; Sam</div>
+    </header>
+
+    <article class="post-content">
+      Been adding geo detail to the torn cloth and shading the additional geo. Shading sure is fun! :)<br />
+<br />
+<table cellpadding="0" cellspacing="0" class="tr-caption-container" style="margin-left: auto; margin-right: auto; text-align: center;"><tbody>
+<tr><td style="text-align: center;"><a href="../images/31d06d0c621a.png" imageanchor="1" style="clear: left; margin-bottom: 1em; margin-left: auto; margin-right: auto;"><img border="0" height="320" src="../images/31d06d0c621a.png" width="310" /></a></td></tr>
+<tr><td class="tr-caption" style="text-align: center;">Thickness added to the cloth geo</td></tr>
+</tbody></table>
+<table align="center" cellpadding="0" cellspacing="0" class="tr-caption-container" style="margin-left: auto; margin-right: auto; text-align: center;"><tbody>
+<tr><td style="text-align: center;"><a href="../images/ac18bffea21f.png" imageanchor="1" style="margin-left: auto; margin-right: auto;"><img border="0" height="320" src="../images/ac18bffea21f.png" width="301" /></a></td></tr>
+<tr><td class="tr-caption" style="text-align: center;">Extrude sides are extruded out again&nbsp;</td></tr>
+</tbody></table>
+The second extrusion is done twice, once for the U direction, and once for the V direction. Polyframe is used to get the UV gradient to extrude along, vopsops are used to move the extrudeFront points after extrusion as you can't control the extrusion per point with just a polyExtrude node...<br />
+<div>
+<br /></div>
+<div>
+The extrusion is done twice so that the two different surfaces represent the opposing thread directions. since my geometry (and therefore tears) are in line with the U and V direction, the effect is not obvious in this case.</div>
+<div>
+<br />
+<table align="center" cellpadding="0" cellspacing="0" class="tr-caption-container" style="margin-left: auto; margin-right: auto; text-align: center;"><tbody>
+<tr><td style="text-align: center;"><a href="../images/4cd3a2f8a03b.png" imageanchor="1" style="margin-left: auto; margin-right: auto;"><img border="0" height="309" src="../images/4cd3a2f8a03b.png" width="320" /></a></td></tr>
+<tr><td class="tr-caption" style="text-align: center;">The extra geo after shading</td></tr>
+</tbody></table>
+The .hip file below has a slightly newer shader than in the video and the image above, I removed the part of the shader that created the soft ramp for the alpha edge and used just the thread noise instead; it now looks more like:</div>
+<div>
+<br /></div>
+<table align="center" cellpadding="0" cellspacing="0" class="tr-caption-container" style="margin-left: auto; margin-right: auto; text-align: center;"><tbody>
+<tr><td style="text-align: center;"><a href="../images/98e07f992593.jpg" imageanchor="1" style="margin-left: auto; margin-right: auto;"><img border="0" height="360" src="../images/98e07f992593.jpg" width="640" /></a></td></tr>
+<tr><td class="tr-caption" style="text-align: center;">Slightly newer shader than what is seen in the video, click for big</td></tr>
+</tbody></table>
+<br />
+The UV space can be transformed after the sim to change the thread direction, the following has the UV space rotated 90º, you can see threads running in two directions on a single edge:<br />
+<div>
+<br /></div>
+<table align="center" cellpadding="0" cellspacing="0" class="tr-caption-container" style="margin-left: auto; margin-right: auto; text-align: center;"><tbody>
+<tr><td style="text-align: center;"><a href="../images/75c245603528.jpg" imageanchor="1" style="margin-left: auto; margin-right: auto;"><img border="0" height="360" src="../images/75c245603528.jpg" width="640" /></a></td></tr>
+<tr><td class="tr-caption" style="text-align: center;">Rotated UV space</td></tr>
+</tbody></table>
+<div>
+There are a few issues with this ... the first is that the geo that is added after the sim penetrates the main geo. The extra edge could be added in the SOP Solver so that they collide properly, maybe something for the future!</div>
+<div>
+<br /></div>
+<div>
+Also there is a part in the shader that adds creases to the normal, this is causing some wacky normals ... anyway, here is the video:</div>
+<div>
+<br /></div>
+<div>
+<iframe allowfullscreen="" frameborder="0" height="281" mozallowfullscreen="" src="//player.vimeo.com/video/80062633" webkitallowfullscreen="" width="500"></iframe> <br />
+<a href="http://vimeo.com/80062633">Houdini cloth tear detailing</a> from <a href="http://vimeo.com/user2221800">Sam Hancock</a> on <a href="https://vimeo.com/">Vimeo</a>.</div>
+<div>
+<br /></div>
+<div>
+<a href="https://www.oliverwhiddles.com/ihoudini/tear_12.5_shade15.hipnc" target="_blank">and here is the .hip file</a><br />
+<div>
+<br />
+Downloaded the denim texture from here:&nbsp;<a href="http://www.fuzzimo.com/free-seamless-denim-jeans-textures/">http://www.fuzzimo.com/free-seamless-denim-jeans-textures/</a></div>
+</div>
+
+      <div class="post-labels"></div>
+    </article>
+
+    <div style="display:flex;justify-content:space-between;padding:20px 0;font-size:14px;">
+      <div><a href="worm-locomotion-with-fem.html">&larr; Worm locomotion with FEM</a></div>
+      <div><a href="some-sops-edges-and-poly-line-business.html">Some SOPs edges and poly line business &rarr;</a></div>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container">
+      <p>Generated by ScrapeFlow</p>
+    </div>
+  </footer>
+</body>
+</html>
