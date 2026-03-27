@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//c/Users/tkguy/.claude 2>/dev/**)",
+      "Edit(~/.claude/skills/project-setup/**)",
+      "Bash(mkdir -p \"d:/Claude/web_ScrapeFlow/.claude/plans\")",
+      "Bash(mkdir -p \"d:/Claude/web_ScrapeFlow/.claude/skills\")",
+      "Bash(npm init:*)"
+    ],
+    "additionalDirectories": [
+      "C:\\Users\\tkguy\\.claude\\projects\\d--Claude-web-ScrapeFlow\\memory"
+    ]
+  }
+}
