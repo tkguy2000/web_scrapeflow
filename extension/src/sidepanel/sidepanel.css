@@ -151,6 +151,84 @@ body {
   background: #f8f9fa;
 }
 
+/* 히스토리 바 */
+.history-bar {
+  padding: 6px 16px;
+  border-bottom: 1px solid #f0f0f0;
+  flex-shrink: 0;
+}
+
+/* 결과 정보 */
+.result-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.btn-sm {
+  padding: 2px 8px;
+  font-size: 11px;
+}
+
+.btn-ghost {
+  background: none;
+  color: #6c757d;
+}
+
+.btn-ghost:hover {
+  color: #1a1a2e;
+  background: #f0f0f0;
+}
+
+.result-info {
+  padding: 8px 16px;
+  font-size: 12px;
+  color: #6c757d;
+  border-bottom: 1px solid #f0f0f0;
+  flex-shrink: 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+/* 온보딩 */
+.onboarding {
+  margin-top: 20px;
+  text-align: left;
+  max-width: 260px;
+}
+
+.onboarding-step {
+  font-size: 12px;
+  color: #6c757d;
+  padding: 6px 0;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.onboarding-step:last-child {
+  border-bottom: none;
+}
+
+/* 토스트 */
+.toast {
+  position: fixed;
+  bottom: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #1a1a2e;
+  color: #fff;
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 500;
+  z-index: 1000;
+  animation: toast-in 0.3s ease;
+}
+
+@keyframes toast-in {
+  from { opacity: 0; transform: translateX(-50%) translateY(10px); }
+  to { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
 .hidden {
   display: none !important;
 }

@@ -1,59 +1,147 @@
 import { MessageType } from '../lib/types';
 import type { PageInfo, ScrapeResult, ScrapeRow, Message } from '../lib/types';
 
-// 페이지 내 테이블 감지
+// === 감지 ===
+
+// 테이블 감지
 function detectTables(): HTMLTableElement[] {
   return Array.from(document.querySelectorAll('table')).filter((table) => {
     const rows = table.querySelectorAll('tr');
-    return rows.length >= 2; // 헤더 + 최소 1행
+    // 레이아웃 테이블 제외: 최소 2행 + 2열
+    if (rows.length < 2) return false;
+    const firstRow = rows[0];
+    const cells = firstRow.querySelectorAll('td, th');
+    return cells.length >= 2;
   });
 }
 
-// 페이지 내 리스트 감지 (반복 구조)
+// 리스트 감지 (ul/ol)
 function detectLists(): HTMLElement[] {
-  const lists: HTMLElement[] = [];
-
-  // ul/ol 리스트
-  document.querySelectorAll('ul, ol').forEach((list) => {
+  return Array.from(document.querySelectorAll<HTMLElement>('ul, ol')).filter((list) => {
     const items = list.querySelectorAll(':scope > li');
-    if (items.length >= 3) {
-      lists.push(list as HTMLElement);
-    }
+    if (items.length < 3) return false;
+    // 네비게이션 리스트 제외
+    const parent = list.closest('nav, header, footer');
+    return !parent;
   });
+}
 
-  return lists;
+// 카드 반복 구조 감지 — 동일 클래스를 가진 반복 자식 요소
+function detectCardGroups(): { container: HTMLElement; cards: HTMLElement[] }[] {
+  const results: { container: HTMLElement; cards: HTMLElement[] }[] = [];
+  const candidates = document.querySelectorAll<HTMLElement>(
+    '[class*="grid"], [class*="list"], [class*="card"], [class*="item"], [class*="product"], [class*="result"]'
+  );
+
+  for (const container of candidates) {
+    const children = Array.from(container.children) as HTMLElement[];
+    if (children.length < 3) continue;
+
+    // 동일 태그+클래스 패턴인지 확인
+    const firstTag = children[0].tagName;
+    const firstClass = children[0].className;
+    const matching = children.filter(
+      (c) => c.tagName === firstTag && c.className === firstClass
+    );
+
+    if (matching.length >= 3 && matching.length / children.length > 0.7) {
+      results.push({ container, cards: matching });
+    }
+  }
+
+  return results;
+}
+
+// dl/dt/dd 감지
+function detectDefinitionLists(): HTMLDListElement[] {
+  return Array.from(document.querySelectorAll('dl')).filter((dl) => {
+    return dl.querySelectorAll('dt').length >= 2;
+  });
+}
+
+// === 추출 ===
+
+// 셀 내부에서 텍스트 + 링크 + 이미지 추출
+function extractCellContent(cell: Element): string {
+  // 이미지가 있으면 src 추출
+  const img = cell.querySelector('img');
+  if (img && !cell.textContent?.trim()) {
+    return img.getAttribute('src') ?? img.getAttribute('data-src') ?? '';
+  }
+
+  // 링크가 있으면 텍스트 (href는 별도 컬럼으로)
+  const text = (cell.textContent ?? '').trim();
+  return text;
+}
+
+// 셀 내부 링크 URL 추출
+function extractCellLink(cell: Element): string | null {
+  const link = cell.querySelector('a[href]');
+  if (!link) return null;
+  try {
+    return new URL(link.getAttribute('href') ?? '', window.location.href).href;
+  } catch {
+    return link.getAttribute('href');
+  }
 }
 
 // 테이블 데이터 추출
 function extractTableData(table: HTMLTableElement): { columns: string[]; rows: ScrapeRow[] } {
-  const headerCells = table.querySelectorAll('thead th, thead td, tr:first-child th');
-  const columns: string[] = [];
-
-  if (headerCells.length > 0) {
-    headerCells.forEach((cell) => {
-      columns.push((cell.textContent ?? '').trim());
-    });
+  // 헤더 찾기: thead > tr > th 또는 첫 행의 th
+  const thead = table.querySelector('thead');
+  let headerCells: Element[];
+  if (thead) {
+    headerCells = Array.from(thead.querySelectorAll('th, td'));
+  } else {
+    const firstRow = table.querySelector('tr');
+    const ths = firstRow?.querySelectorAll('th');
+    headerCells = ths && ths.length > 0 ? Array.from(ths) : [];
   }
 
-  const bodyRows = table.querySelectorAll('tbody tr, tr');
+  const columns: string[] = headerCells.map(
+    (cell, i) => (cell.textContent ?? '').trim() || `Column ${i + 1}`
+  );
+
+  // 링크 컬럼 추가 여부 결정
+  const hasLinks: boolean[] = [];
+
+  // 데이터 행 추출
+  const tbody = table.querySelector('tbody') ?? table;
+  const allRows = Array.from(tbody.querySelectorAll('tr'));
+  const dataRows = thead
+    ? allRows
+    : allRows.filter((_, i) => i > 0 || headerCells.length === 0);
+
+  // 헤더 행(th만 있는) 스킵
   const rows: ScrapeRow[] = [];
-  const startIndex = headerCells.length > 0 ? 0 : 0;
-
-  bodyRows.forEach((tr, idx) => {
-    // 헤더 행 스킵
-    if (idx === 0 && headerCells.length > 0 && tr.querySelector('th')) return;
-
+  for (const tr of dataRows) {
     const cells = tr.querySelectorAll('td, th');
-    if (cells.length === 0) return;
+    if (cells.length === 0) continue;
+    // th만 있는 행은 스킵
+    if (tr.querySelectorAll('th').length === cells.length && rows.length === 0) continue;
 
     const row: ScrapeRow = {};
-    cells.forEach((cell, cellIdx) => {
-      const colName = columns[cellIdx] ?? `Column ${cellIdx + 1}`;
-      // 컬럼명이 없으면 자동 생성
-      if (!columns[cellIdx]) columns[cellIdx] = colName;
-      row[colName] = (cell.textContent ?? '').trim();
+    cells.forEach((cell, i) => {
+      const colName = columns[i] ?? `Column ${i + 1}`;
+      if (!columns[i]) columns[i] = colName;
+      row[colName] = extractCellContent(cell);
+
+      // 링크 감지
+      const link = extractCellLink(cell);
+      if (link) {
+        if (!hasLinks[i]) hasLinks[i] = true;
+        row[`${colName}_link`] = link;
+      }
     });
     rows.push(row);
+  }
+
+  // 링크 컬럼 추가
+  hasLinks.forEach((has, i) => {
+    if (has && columns[i]) {
+      const linkCol = `${columns[i]}_link`;
+      if (!columns.includes(linkCol)) columns.push(linkCol);
+    }
   });
 
   return { columns, rows };
@@ -65,55 +153,194 @@ function extractListData(list: HTMLElement): { columns: string[]; rows: ScrapeRo
   const columns = ['Item'];
   const rows: ScrapeRow[] = [];
 
+  // 리스트 아이템 내부 구조 분석 — 서브 요소가 있으면 컬럼화
+  const firstItem = items[0];
+  const subElements = firstItem?.querySelectorAll('a, span, strong, em, time, img');
+
+  if (subElements && subElements.length >= 2) {
+    // 구조화된 리스트 — 서브 요소별로 컬럼 생성
+    const subTags = Array.from(subElements).map((el) => el.tagName.toLowerCase());
+    const uniqueTags = [...new Set(subTags)];
+    const structuredColumns = uniqueTags.map(
+      (tag, i) => `${tag.charAt(0).toUpperCase() + tag.slice(1)} ${i + 1}`
+    );
+
+    items.forEach((item) => {
+      const row: ScrapeRow = {};
+      uniqueTags.forEach((tag, i) => {
+        const el = item.querySelector(tag);
+        row[structuredColumns[i]] = el ? extractCellContent(el) : '';
+      });
+      rows.push(row);
+    });
+
+    return { columns: structuredColumns, rows };
+  }
+
+  // 단순 리스트
   items.forEach((item) => {
-    rows.push({ Item: (item.textContent ?? '').trim() });
+    const text = (item.textContent ?? '').trim();
+    if (text) {
+      const row: ScrapeRow = { Item: text };
+      const link = extractCellLink(item);
+      if (link) row['Link'] = link;
+      rows.push(row);
+    }
+  });
+
+  if (rows.some((r) => r['Link'])) columns.push('Link');
+  return { columns, rows };
+}
+
+// 카드 반복 구조 추출
+function extractCardData(cards: HTMLElement[]): { columns: string[]; rows: ScrapeRow[] } {
+  if (cards.length === 0) return { columns: [], rows: [] };
+
+  // 첫 카드를 분석해서 컬럼 구조 추론
+  const sampleCard = cards[0];
+  const columnMap: { selector: string; name: string }[] = [];
+
+  // 제목 (h1-h6, [class*="title"], [class*="name"])
+  const titleEl = sampleCard.querySelector('h1, h2, h3, h4, h5, h6, [class*="title"], [class*="name"]');
+  if (titleEl) columnMap.push({ selector: 'h1, h2, h3, h4, h5, h6, [class*="title"], [class*="name"]', name: 'Title' });
+
+  // 가격 ([class*="price"])
+  const priceEl = sampleCard.querySelector('[class*="price"]');
+  if (priceEl) columnMap.push({ selector: '[class*="price"]', name: 'Price' });
+
+  // 설명 ([class*="desc"], p)
+  const descEl = sampleCard.querySelector('[class*="desc"], [class*="description"], p');
+  if (descEl) columnMap.push({ selector: '[class*="desc"], [class*="description"], p', name: 'Description' });
+
+  // 이미지
+  const imgEl = sampleCard.querySelector('img');
+  if (imgEl) columnMap.push({ selector: 'img', name: 'Image' });
+
+  // 링크
+  const linkEl = sampleCard.querySelector('a[href]');
+  if (linkEl) columnMap.push({ selector: 'a[href]', name: 'Link' });
+
+  // 컬럼이 발견되지 않으면 전체 텍스트
+  if (columnMap.length === 0) {
+    const columns = ['Content'];
+    const rows = cards.map((card) => ({ Content: (card.textContent ?? '').trim() }));
+    return { columns, rows };
+  }
+
+  const columns = columnMap.map((c) => c.name);
+  const rows: ScrapeRow[] = [];
+
+  for (const card of cards) {
+    const row: ScrapeRow = {};
+    for (const col of columnMap) {
+      const el = card.querySelector(col.selector);
+      if (!el) {
+        row[col.name] = '';
+        continue;
+      }
+      if (col.name === 'Image') {
+        row[col.name] = (el as HTMLImageElement).src || (el as HTMLImageElement).getAttribute('data-src') || '';
+      } else if (col.name === 'Link') {
+        try {
+          row[col.name] = new URL((el as HTMLAnchorElement).href, window.location.href).href;
+        } catch {
+          row[col.name] = (el as HTMLAnchorElement).href ?? '';
+        }
+      } else {
+        row[col.name] = (el.textContent ?? '').trim();
+      }
+    }
+    rows.push(row);
+  }
+
+  return { columns, rows };
+}
+
+// dl/dt/dd 추출
+function extractDefinitionData(dl: HTMLDListElement): { columns: string[]; rows: ScrapeRow[] } {
+  const columns = ['Term', 'Description'];
+  const rows: ScrapeRow[] = [];
+
+  const dts = dl.querySelectorAll('dt');
+  dts.forEach((dt) => {
+    const dd = dt.nextElementSibling;
+    if (dd?.tagName === 'DD') {
+      rows.push({
+        Term: (dt.textContent ?? '').trim(),
+        Description: (dd.textContent ?? '').trim(),
+      });
+    }
   });
 
   return { columns, rows };
 }
 
-// 페이지 정보 수집
+// === 메인 ===
+
 function getPageInfo(): PageInfo {
   const tables = detectTables();
   const lists = detectLists();
+  const cards = detectCardGroups();
+  const dls = detectDefinitionLists();
 
   return {
     url: window.location.href,
     title: document.title,
     tableCount: tables.length,
-    listCount: lists.length,
-    hasStructuredData: tables.length > 0 || lists.length > 0,
+    listCount: lists.length + cards.length + dls.length,
+    hasStructuredData: tables.length > 0 || lists.length > 0 || cards.length > 0 || dls.length > 0,
   };
 }
 
-// 전체 스크래핑 실행
 function scrapeAll(): ScrapeResult {
   const tables = detectTables();
   const lists = detectLists();
+  const cards = detectCardGroups();
+  const dls = detectDefinitionLists();
 
-  let allColumns: string[] = [];
-  let allRows: ScrapeRow[] = [];
+  let bestResult: { columns: string[]; rows: ScrapeRow[] } = { columns: [], rows: [] };
 
-  // 테이블 우선 추출
+  // 1. 테이블 우선
   for (const table of tables) {
-    const { columns, rows } = extractTableData(table);
-    if (rows.length > 0) {
-      allColumns = columns;
-      allRows = rows;
-      break; // 첫 번째 유의미한 테이블 사용
+    const result = extractTableData(table);
+    if (result.rows.length > bestResult.rows.length) {
+      bestResult = result;
     }
   }
 
-  // 테이블이 없으면 리스트 추출
-  if (allRows.length === 0 && lists.length > 0) {
-    const { columns, rows } = extractListData(lists[0]);
-    allColumns = columns;
-    allRows = rows;
+  // 2. 카드 반복 구조
+  if (bestResult.rows.length === 0) {
+    for (const group of cards) {
+      const result = extractCardData(group.cards);
+      if (result.rows.length > bestResult.rows.length) {
+        bestResult = result;
+      }
+    }
+  }
+
+  // 3. 리스트
+  if (bestResult.rows.length === 0) {
+    for (const list of lists) {
+      const result = extractListData(list);
+      if (result.rows.length > bestResult.rows.length) {
+        bestResult = result;
+      }
+    }
+  }
+
+  // 4. dl/dt/dd
+  if (bestResult.rows.length === 0) {
+    for (const dl of dls) {
+      const result = extractDefinitionData(dl);
+      if (result.rows.length > bestResult.rows.length) {
+        bestResult = result;
+      }
+    }
   }
 
   return {
-    columns: allColumns,
-    rows: allRows,
+    columns: bestResult.columns,
+    rows: bestResult.rows,
     url: window.location.href,
     title: document.title,
     timestamp: Date.now(),
@@ -140,6 +367,6 @@ chrome.runtime.onMessage.addListener(
       default:
         break;
     }
-    return true; // 비동기 응답 허용
+    return true;
   }
 );

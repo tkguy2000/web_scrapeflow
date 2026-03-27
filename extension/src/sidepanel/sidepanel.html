@@ -25,18 +25,39 @@
       <div class="empty-icon">📋</div>
       <p class="empty-title">아직 추출된 데이터가 없습니다</p>
       <p class="empty-desc">Popup에서 "데이터 추출" 버튼을 클릭하여 시작하세요</p>
+      <div class="onboarding">
+        <p class="onboarding-step">1. 데이터가 있는 웹페이지를 열어주세요</p>
+        <p class="onboarding-step">2. ScrapeFlow 아이콘을 클릭하세요</p>
+        <p class="onboarding-step">3. "데이터 추출" 버튼을 누르면 자동으로 감지합니다</p>
+      </div>
     </div>
 
-    <!-- 결과 테이블 -->
+    <!-- 결과 영역 -->
     <div id="result-container" class="result-container hidden">
+      <!-- 결과 정보 바 -->
       <div class="result-info">
         <span id="result-summary"></span>
+        <div class="result-actions">
+          <button id="btn-clear" class="btn btn-ghost btn-sm" aria-label="결과 지우기">지우기</button>
+        </div>
       </div>
+
+      <!-- 히스토리 탭 -->
+      <div id="history-bar" class="history-bar hidden">
+        <select id="history-select" class="select" aria-label="히스토리 선택"></select>
+      </div>
+
+      <!-- 데이터 테이블 -->
       <div class="table-wrapper">
-        <table id="result-table" class="data-table">
+        <table id="result-table" class="data-table" role="grid">
           <thead id="table-head"></thead>
           <tbody id="table-body"></tbody>
         </table>
+      </div>
+
+      <!-- 내보내기 성공 토스트 -->
+      <div id="toast" class="toast hidden" role="status" aria-live="polite">
+        <span id="toast-message"></span>
       </div>
     </div>
   </div>
