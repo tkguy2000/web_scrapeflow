@@ -32,6 +32,17 @@
       </button>
     </div>
 
+    <!-- AI 자연어 입력 -->
+    <div id="ai-section" class="ai-section hidden">
+      <label class="ai-label" for="ai-prompt">AI에게 원하는 데이터를 설명하세요</label>
+      <div class="ai-input-row">
+        <input type="text" id="ai-prompt" class="ai-input"
+          placeholder="예: 상품명, 가격, 평점을 추출해줘" />
+        <button id="btn-ai-scrape" class="btn btn-ai">AI 추출</button>
+      </div>
+      <p class="ai-hint" id="ai-hint"></p>
+    </div>
+
     <!-- 빈 상태 / 온보딩 -->
     <div id="empty-state" class="empty-state hidden">
       <p class="empty-title">이 페이지에서 추출할 데이터가 없습니다</p>
@@ -44,6 +55,23 @@
         <span id="result-count">0행 추출됨</span>
         <button id="btn-open-panel" class="btn btn-link">상세 보기 →</button>
       </div>
+      <div class="quick-export">
+        <button class="btn btn-export-sm" data-format="json">JSON</button>
+        <button class="btn btn-export-sm" data-format="csv">CSV</button>
+        <button class="btn btn-export-sm" data-format="clipboard">복사</button>
+      </div>
+    </div>
+
+    <!-- 설정 패널 -->
+    <div id="settings-panel" class="settings-panel hidden">
+      <h3 class="settings-title">설정</h3>
+      <label class="settings-label" for="api-key-input">Claude API Key</label>
+      <div class="ai-input-row">
+        <input type="password" id="api-key-input" class="ai-input"
+          placeholder="sk-ant-..." autocomplete="off" />
+        <button id="btn-save-key" class="btn btn-primary btn-sm">저장</button>
+      </div>
+      <p id="key-status" class="ai-hint"></p>
     </div>
 
     <!-- 푸터 -->
