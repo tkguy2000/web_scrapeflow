@@ -4,12 +4,50 @@
   box-sizing: border-box;
 }
 
+/* === 테마 변수 === */
+:root {
+  /* 다크 모드 (기본) */
+  --bg: #1a1a2e;
+  --surface: #25253d;
+  --border: #3a3a5c;
+  --text: #e8e8f0;
+  --text-dim: #9898b0;
+  --text-muted: #6b6b88;
+  --accent: #6c5ce7;
+  --accent-hover: #5a4bd1;
+  --accent-bg: rgba(139, 92, 246, 0.15);
+  --accent-bg-hover: rgba(139, 92, 246, 0.25);
+  --success: #22c55e;
+  --success-bg: rgba(34, 197, 94, 0.1);
+  --success-border: rgba(34, 197, 94, 0.3);
+  --progress-bg: #e9ecef;
+}
+
+/* 라이트 모드 */
+[data-theme="light"] {
+  --bg: #f5f5f7;
+  --surface: #ffffff;
+  --border: #d1d1d6;
+  --text: #1d1d1f;
+  --text-dim: #6e6e73;
+  --text-muted: #8e8e93;
+  --accent: #6c5ce7;
+  --accent-hover: #5a4bd1;
+  --accent-bg: rgba(108, 92, 231, 0.1);
+  --accent-bg-hover: rgba(108, 92, 231, 0.18);
+  --success: #34c759;
+  --success-bg: rgba(52, 199, 89, 0.1);
+  --success-border: rgba(52, 199, 89, 0.3);
+  --progress-bg: #d1d1d6;
+}
+
 body {
   width: 380px;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
   font-size: 14px;
-  color: #e8e8f0;
-  background: #1a1a2e;
+  color: var(--text);
+  background: var(--bg);
+  transition: background 0.2s, color 0.2s;
 }
 
 #app {
@@ -27,31 +65,90 @@ body {
 .logo {
   font-size: 18px;
   font-weight: 700;
-  color: #e8e8f0;
+  color: var(--text);
 }
 
 .badge {
   font-size: 10px;
   font-weight: 600;
   color: #fff;
-  background: #6c5ce7;
+  background: var(--accent);
   padding: 2px 6px;
   border-radius: 4px;
   letter-spacing: 0.5px;
 }
 
+/* 헤더 우측 토글 영역 */
+.header-controls {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* 테마 토글 */
+.theme-toggle {
+  display: flex;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 2px;
+  gap: 1px;
+}
+
+.theme-btn {
+  background: none;
+  border: none;
+  border-radius: 4px;
+  padding: 3px 6px;
+  font-size: 12px;
+  cursor: pointer;
+  color: var(--text-dim);
+  transition: all 0.15s;
+  line-height: 1;
+}
+
+.theme-btn:hover {
+  color: var(--text);
+  background: var(--accent-bg);
+}
+
+.theme-btn.active {
+  background: var(--accent);
+  color: #fff;
+}
+
+/* 언어 토글 */
+.lang-toggle {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 3px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  color: var(--text-dim);
+  transition: all 0.15s;
+}
+
+.lang-toggle:hover {
+  color: var(--text);
+  background: var(--accent-bg);
+}
+
 /* 페이지 정보 */
 .page-info {
-  background: #25253d;
+  background: var(--surface);
   border-radius: 8px;
   padding: 12px;
   margin-bottom: 16px;
+  transition: background 0.2s;
 }
 
 .page-title {
   font-weight: 600;
   font-size: 13px;
-  color: #e8e8f0;
+  color: var(--text);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -60,7 +157,7 @@ body {
 
 .page-url {
   font-size: 11px;
-  color: #9898b0;
+  color: var(--text-dim);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -71,7 +168,7 @@ body {
   display: flex;
   gap: 12px;
   font-size: 12px;
-  color: #9898b0;
+  color: var(--text-dim);
 }
 
 .page-stats .stat {
@@ -82,7 +179,7 @@ body {
 
 .stat-count {
   font-weight: 600;
-  color: #6c5ce7;
+  color: var(--accent);
 }
 
 /* 버튼 */
@@ -115,26 +212,26 @@ body {
 .btn:focus-visible,
 .select:focus-visible,
 .ai-input:focus-visible {
-  outline: 2px solid #6c5ce7;
+  outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
 
 .btn-primary {
-  background: #6c5ce7;
+  background: var(--accent);
   color: #fff;
 }
 
 .btn-primary:hover:not(:disabled) {
-  background: #5a4bd1;
+  background: var(--accent-hover);
 }
 
 .btn-secondary {
-  background: rgba(139, 92, 246, 0.15);
-  color: #6c5ce7;
+  background: var(--accent-bg);
+  color: var(--accent);
 }
 
 .btn-secondary:hover {
-  background: rgba(139, 92, 246, 0.25);
+  background: var(--accent-bg-hover);
 }
 
 .btn-clone {
@@ -149,20 +246,20 @@ body {
 
 .btn-link {
   background: none;
-  color: #6c5ce7;
+  color: var(--accent);
   padding: 4px 8px;
   font-size: 12px;
 }
 
 .btn-ghost {
   background: none;
-  color: #9898b0;
+  color: var(--text-dim);
   padding: 4px 8px;
   font-size: 12px;
 }
 
 .btn-ghost:hover {
-  color: #e8e8f0;
+  color: var(--text);
 }
 
 .btn-icon {
@@ -178,19 +275,19 @@ body {
 .empty-title {
   font-weight: 600;
   font-size: 13px;
-  color: #9898b0;
+  color: var(--text-dim);
   margin-bottom: 4px;
 }
 
 .empty-desc {
   font-size: 12px;
-  color: #6b6b88;
+  color: var(--text-muted);
 }
 
 /* 결과 미리보기 */
 .result-preview {
-  background: rgba(34, 197, 94, 0.1);
-  border: 1px solid rgba(34, 197, 94, 0.3);
+  background: var(--success-bg);
+  border: 1px solid var(--success-border);
   border-radius: 8px;
   padding: 12px;
   margin-bottom: 16px;
@@ -205,7 +302,7 @@ body {
 #result-count {
   font-weight: 600;
   font-size: 13px;
-  color: #22c55e;
+  color: var(--success);
 }
 
 /* 푸터 */
@@ -214,18 +311,18 @@ body {
   justify-content: space-between;
   align-items: center;
   padding-top: 8px;
-  border-top: 1px solid #3a3a5c;
+  border-top: 1px solid var(--border);
 }
 
 .version {
   font-size: 11px;
-  color: #6b6b88;
+  color: var(--text-muted);
 }
 
 /* AI 힌트 */
 .ai-hint {
   font-size: 11px;
-  color: #9898b0;
+  color: var(--text-dim);
   margin-bottom: 8px;
   min-height: 16px;
 }
@@ -240,21 +337,22 @@ body {
 .btn-export-sm {
   padding: 4px 10px;
   font-size: 11px;
-  background: rgba(139, 92, 246, 0.15);
-  color: #6c5ce7;
+  background: var(--accent-bg);
+  color: var(--accent);
   border-radius: 4px;
 }
 
 .btn-export-sm:hover {
-  background: rgba(139, 92, 246, 0.25);
+  background: var(--accent-bg-hover);
 }
 
 /* 설정 패널 */
 .settings-panel {
-  background: #25253d;
+  background: var(--surface);
   border-radius: 8px;
   padding: 12px;
   margin-bottom: 16px;
+  transition: background 0.2s;
 }
 
 .settings-title {
@@ -266,8 +364,29 @@ body {
 .settings-label {
   display: block;
   font-size: 12px;
-  color: #9898b0;
+  color: var(--text-dim);
   margin-bottom: 4px;
+}
+
+.ai-input {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px 10px;
+  color: var(--text);
+  font-size: 13px;
+  flex: 1;
+}
+
+.ai-input-row {
+  display: flex;
+  gap: 6px;
+}
+
+.btn-sm {
+  padding: 6px 12px;
+  font-size: 12px;
+  flex: none;
 }
 
 /* 유틸 */
@@ -285,7 +404,7 @@ body {
 .progress-bar {
   width: 100%;
   height: 4px;
-  background: #e9ecef;
+  background: var(--progress-bg);
   border-radius: 2px;
   overflow: hidden;
   margin-top: 8px;
@@ -293,7 +412,7 @@ body {
 
 .progress-bar-fill {
   height: 100%;
-  background: #6c5ce7;
+  background: var(--accent);
   border-radius: 2px;
   transition: width 0.3s ease;
 }

@@ -3,6 +3,145 @@ import type { PageInfo, ScrapeResult, ExportFormat, Message } from '../lib/types
 import { downloadData } from '../lib/export';
 import { getApiKey } from '../lib/ai';
 
+// === 다국어 텍스트 ===
+type I18nValue = string | ((...args: string[]) => string);
+const i18n: Record<string, Record<string, I18nValue>> = {
+  ko: {
+    pageLoading: '페이지 로딩 중...',
+    unknownPage: '알 수 없는 페이지',
+    analyzing: '페이지 분석 대기 중...',
+    aiExtract: 'AI 추출',
+    aiAnalyzing: '✨ AI 분석 중...',
+    fullCapture: '풀 페이지 캡처',
+    capturing: '캡처 중...',
+    siteClone: 'Site Clone',
+    noData: '이 페이지에서 추출할 데이터가 없습니다',
+    noDataDesc: '테이블이나 리스트가 있는 페이지에서 사용해보세요',
+    rowExtracted: (r: string, c: string) => `${r}행 × ${c}열 추출됨`,
+    viewDetail: '상세 보기 →',
+    copy: '복사',
+    settings: '설정',
+    apiKeyLabel: 'Claude API Key',
+    save: '저장',
+    apiKeySet: 'API 키가 설정되어 있습니다',
+    enterApiKey: 'API 키를 입력해주세요',
+    saved: '저장되었습니다',
+    table: '테이블',
+    list: '리스트',
+    noStructured: '구조화된 데이터 없음',
+    unit: '개',
+    analyzingPage: '페이지를 분석하고 있습니다...',
+    aiInferring: 'AI가 데이터 구조를 추론하고 있습니다...',
+    notFound: '추출할 데이터를 찾지 못했습니다',
+    extractFailed: '추출에 실패했습니다',
+    capturingPage: '전체 페이지를 캡처하고 있습니다...',
+    captureComplete: '캡처 완료! 다운로드를 확인하세요.',
+    captureFailed: '캡처 실패',
+  },
+  en: {
+    pageLoading: 'Loading page...',
+    unknownPage: 'Unknown page',
+    analyzing: 'Waiting for page analysis...',
+    aiExtract: 'AI Extract',
+    aiAnalyzing: '✨ Analyzing...',
+    fullCapture: 'Full Page Capture',
+    capturing: 'Capturing...',
+    siteClone: 'Site Clone',
+    noData: 'No extractable data found on this page',
+    noDataDesc: 'Try on a page with tables or lists',
+    rowExtracted: (r: string, c: string) => `${r} rows × ${c} cols extracted`,
+    viewDetail: 'View Details →',
+    copy: 'Copy',
+    settings: 'Settings',
+    apiKeyLabel: 'Claude API Key',
+    save: 'Save',
+    apiKeySet: 'API key is configured',
+    enterApiKey: 'Please enter an API key',
+    saved: 'Saved',
+    table: 'Tables',
+    list: 'Lists',
+    noStructured: 'No structured data',
+    unit: '',
+    analyzingPage: 'Analyzing page...',
+    aiInferring: 'AI is inferring data structure...',
+    notFound: 'No extractable data found',
+    extractFailed: 'Extraction failed',
+    capturingPage: 'Capturing full page...',
+    captureComplete: 'Capture complete! Check your downloads.',
+    captureFailed: 'Capture failed',
+  },
+};
+
+// 현재 언어 (기본: ko)
+let currentLang = 'ko';
+
+function t(key: string, ...args: string[]): string {
+  const val = i18n[currentLang]?.[key] ?? i18n['ko'][key] ?? key;
+  if (typeof val === 'function') return val(...args);
+  return val;
+}
+
+// === 테마 관리 ===
+type ThemeMode = 'dark' | 'light' | 'system';
+let currentTheme: ThemeMode = 'dark';
+
+function applyTheme(mode: ThemeMode): void {
+  currentTheme = mode;
+  const root = document.documentElement;
+
+  if (mode === 'system') {
+    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    root.setAttribute('data-theme', prefersDark ? 'dark' : 'light');
+  } else {
+    root.setAttribute('data-theme', mode === 'light' ? 'light' : '');
+    // 다크 모드는 기본이므로 data-theme 속성 제거
+    if (mode === 'dark') root.removeAttribute('data-theme');
+  }
+
+  // 토글 버튼 활성화 상태 업데이트
+  document.querySelectorAll('.theme-btn').forEach((btn) => {
+    const btnTheme = (btn as HTMLElement).dataset['theme'];
+    btn.classList.toggle('active', btnTheme === mode);
+  });
+
+  chrome.storage.local.set({ sf_theme: mode });
+}
+
+function applyLang(lang: string): void {
+  currentLang = lang;
+  document.documentElement.lang = lang === 'ko' ? 'ko' : 'en';
+
+  // 정적 텍스트 업데이트
+  const $langBtn = document.getElementById('lang-toggle')!;
+  $langBtn.textContent = lang === 'ko' ? '한/EN' : 'EN/한';
+
+  // UI 텍스트 갱신
+  $pageTitle.textContent = $pageTitle.textContent === t('pageLoading') || $pageTitle.dataset['original'] === undefined
+    ? t('pageLoading') : $pageTitle.textContent;
+  document.querySelector('.empty-title')!.textContent = t('noData');
+  document.querySelector('.empty-desc')!.textContent = t('noDataDesc');
+  document.getElementById('btn-open-panel')!.textContent = t('viewDetail');
+  document.querySelector('[data-format="clipboard"]')!.textContent = t('copy');
+  document.getElementById('btn-settings')!.textContent = t('settings');
+  document.querySelector('.settings-title')!.textContent = t('settings');
+  document.querySelector('.settings-label')!.textContent = t('apiKeyLabel');
+  document.getElementById('btn-save-key')!.textContent = t('save');
+
+  // 버튼 텍스트
+  resetButton($btnScrape, '✨', t('aiExtract'));
+  resetButton($btnCapture, '📸', t('fullCapture'));
+  // Site Clone 버튼 복원
+  const $clone = document.getElementById('btn-clone')!;
+  $clone.textContent = '';
+  const cloneIcon = document.createElement('span');
+  cloneIcon.className = 'btn-icon';
+  cloneIcon.textContent = '🏗️';
+  $clone.appendChild(cloneIcon);
+  $clone.appendChild(document.createTextNode(` ${t('siteClone')}`));
+
+  chrome.storage.local.set({ sf_lang: lang });
+}
+
 const $pageTitle = document.getElementById('page-title')!;
 const $pageUrl = document.getElementById('page-url')!;
 const $pageStats = document.getElementById('page-stats')!;
@@ -36,7 +175,7 @@ function createStatElement(label: string, count: number): HTMLSpanElement {
   countSpan.className = 'stat-count';
   countSpan.textContent = String(count);
   span.appendChild(countSpan);
-  span.appendChild(document.createTextNode('개'));
+  span.appendChild(document.createTextNode(t('unit') ? t('unit') : ''));
   return span;
 }
 
@@ -44,7 +183,7 @@ function createStatElement(label: string, count: number): HTMLSpanElement {
 function showResult(result: ScrapeResult): void {
   lastResult = result;
   $resultPreview.classList.remove('hidden');
-  $resultCount.textContent = `${result.rows.length}행 × ${result.columns.length}열 추출됨`;
+  $resultCount.textContent = t('rowExtracted', String(result.rows.length), String(result.columns.length));
   $emptyState.classList.add('hidden');
   $aiHint.textContent = '';
 }
@@ -54,7 +193,7 @@ async function loadPageInfo(): Promise<void> {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   if (!tab?.id || !tab.url) return;
 
-  $pageTitle.textContent = tab.title ?? '알 수 없는 페이지';
+  $pageTitle.textContent = tab.title ?? t('unknownPage');
   $pageUrl.textContent = tab.url;
 
   try {
@@ -63,15 +202,15 @@ async function loadPageInfo(): Promise<void> {
     });
     if (response) updatePageStats(response);
   } catch {
-    $pageStats.textContent = '페이지 분석 대기 중...';
+    $pageStats.textContent = t('analyzing');
   }
 }
 
 function updatePageStats(info: PageInfo): void {
   $pageStats.textContent = '';
-  if (info.tableCount > 0) $pageStats.appendChild(createStatElement('테이블', info.tableCount));
-  if (info.listCount > 0) $pageStats.appendChild(createStatElement('리스트', info.listCount));
-  if (!info.hasStructuredData) $pageStats.textContent = '구조화된 데이터 없음';
+  if (info.tableCount > 0) $pageStats.appendChild(createStatElement(t('table'), info.tableCount));
+  if (info.listCount > 0) $pageStats.appendChild(createStatElement(t('list'), info.listCount));
+  if (!info.hasStructuredData) $pageStats.textContent = t('noStructured');
 }
 
 // AI 추출 (원클릭 자동)
@@ -80,8 +219,8 @@ $btnScrape.addEventListener('click', async () => {
   if (!tab?.id) return;
 
   $btnScrape.disabled = true;
-  $btnScrape.textContent = '✨ AI 분석 중...';
-  $aiHint.textContent = '페이지를 분석하고 있습니다...';
+  $btnScrape.textContent = t('aiAnalyzing');
+  $aiHint.textContent = t('analyzingPage');
 
   try {
     // 1단계: 먼저 일반 스크래핑 시도 (빠름)
@@ -98,7 +237,7 @@ $btnScrape.addEventListener('click', async () => {
     if (!hasGoodData) {
       const apiKey = await getApiKey();
       if (apiKey) {
-        $aiHint.textContent = 'AI가 데이터 구조를 추론하고 있습니다...';
+        $aiHint.textContent = t('aiInferring');
         try {
           const aiResult = await chrome.runtime.sendMessage({
             type: MessageType.SCRAPE_START,
@@ -122,14 +261,14 @@ $btnScrape.addEventListener('click', async () => {
       });
     } else {
       $emptyState.classList.remove('hidden');
-      $aiHint.textContent = '추출할 데이터를 찾지 못했습니다';
+      $aiHint.textContent = t('notFound');
     }
   } catch (err) {
     console.error('추출 실패:', err);
-    $aiHint.textContent = '추출에 실패했습니다';
+    $aiHint.textContent = t('extractFailed');
   } finally {
     $btnScrape.disabled = false;
-    resetButton($btnScrape, '✨', 'AI 추출');
+    resetButton($btnScrape, '✨', t('aiExtract'));
   }
 });
 
@@ -139,8 +278,8 @@ $btnCapture.addEventListener('click', async () => {
   if (!tab?.id) return;
 
   $btnCapture.disabled = true;
-  $btnCapture.textContent = '캡처 중...';
-  $aiHint.textContent = '전체 페이지를 캡처하고 있습니다...';
+  $btnCapture.textContent = t('capturing');
+  $aiHint.textContent = t('capturingPage');
 
   try {
     const response = await chrome.runtime.sendMessage({
@@ -148,16 +287,16 @@ $btnCapture.addEventListener('click', async () => {
       payload: { tabId: tab.id, format: 'png', fullPage: true },
     });
     if (response?.ok) {
-      $aiHint.textContent = '캡처 완료! 다운로드를 확인하세요.';
+      $aiHint.textContent = t('captureComplete');
     } else {
-      $aiHint.textContent = `캡처 실패: ${response?.error || '알 수 없는 에러'}`;
+      $aiHint.textContent = `${t('captureFailed')}: ${response?.error || 'Unknown error'}`;
     }
   } catch (err) {
-    console.error('캡처 실패:', err);
-    $aiHint.textContent = `캡처 실패: ${String(err)}`;
+    console.error('Capture failed:', err);
+    $aiHint.textContent = `${t('captureFailed')}: ${String(err)}`;
   } finally {
     $btnCapture.disabled = false;
-    resetButton($btnCapture, '📸', '풀 페이지 캡처');
+    resetButton($btnCapture, '📸', t('fullCapture'));
   }
 });
 
@@ -200,18 +339,44 @@ $btnSettings.addEventListener('click', async () => {
     const key = await getApiKey();
     if (key) {
       $apiKeyInput.value = key;
-      $keyStatus.textContent = 'API 키가 설정되어 있습니다';
+      $keyStatus.textContent = t('apiKeySet');
     }
   }
 });
 
 $btnSaveKey.addEventListener('click', async () => {
   const key = $apiKeyInput.value.trim();
-  if (!key) { $keyStatus.textContent = 'API 키를 입력해주세요'; return; }
+  if (!key) { $keyStatus.textContent = t('enterApiKey'); return; }
   const { setApiKey } = await import('../lib/ai');
   await setApiKey(key);
-  $keyStatus.textContent = '저장되었습니다';
+  $keyStatus.textContent = t('saved');
   setTimeout(() => $settingsPanel.classList.add('hidden'), 1000);
 });
 
-loadPageInfo();
+// === 테마 토글 이벤트 ===
+document.querySelectorAll('.theme-btn').forEach((btn) => {
+  btn.addEventListener('click', () => {
+    const mode = (btn as HTMLElement).dataset['theme'] as ThemeMode;
+    applyTheme(mode);
+  });
+});
+
+// 시스템 테마 변경 감지
+window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+  if (currentTheme === 'system') applyTheme('system');
+});
+
+// === 언어 토글 이벤트 ===
+document.getElementById('lang-toggle')!.addEventListener('click', () => {
+  applyLang(currentLang === 'ko' ? 'en' : 'ko');
+  // 페이지 정보 다시 로드 (통계 텍스트 갱신)
+  loadPageInfo();
+});
+
+// === 초기화: 저장된 설정 복원 ===
+(async () => {
+  const stored = await chrome.storage.local.get(['sf_theme', 'sf_lang']);
+  if (stored['sf_theme']) applyTheme(stored['sf_theme'] as ThemeMode);
+  if (stored['sf_lang']) applyLang(stored['sf_lang'] as string);
+  loadPageInfo();
+})();
