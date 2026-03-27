@@ -89,14 +89,16 @@ function applyTheme(mode: ThemeMode): void {
   currentTheme = mode;
   const root = document.documentElement;
 
+  // 실제 적용할 테마 결정
+  let resolved: 'dark' | 'light';
   if (mode === 'system') {
-    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-    root.setAttribute('data-theme', prefersDark ? 'dark' : 'light');
+    resolved = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
   } else {
-    root.setAttribute('data-theme', mode === 'light' ? 'light' : '');
-    // 다크 모드는 기본이므로 data-theme 속성 제거
-    if (mode === 'dark') root.removeAttribute('data-theme');
+    resolved = mode;
   }
+
+  // 항상 명시적으로 data-theme 설정
+  root.setAttribute('data-theme', resolved);
 
   // 토글 버튼 활성화 상태 업데이트
   document.querySelectorAll('.theme-btn').forEach((btn) => {
