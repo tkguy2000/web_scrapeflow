@@ -119,8 +119,12 @@ async function handleCapture(opts: {
   return { ok: true };
 }
 
-// 풀 페이지 캡처 — 스크롤하면서 한 장씩 찍고 Canvas로 합침
+// 풀 페이지 캡처 — 스크롤하면서 한 장씩 찍고 OffscreenCanvas로 합침
 async function captureFullPageByStitching(tabId: number): Promise<void> {
+  // 탭의 windowId 가져오기
+  const tab = await chrome.tabs.get(tabId);
+  const windowId = tab.windowId;
+
   // 1. 페이지 전체 크기 측정
   const [sizeResult] = await chrome.scripting.executeScript({
     target: { tabId },
@@ -132,7 +136,6 @@ async function captureFullPageByStitching(tabId: number): Promise<void> {
         document.documentElement.offsetHeight
       ),
       viewportHeight: window.innerHeight,
-      viewportWidth: document.documentElement.clientWidth,
       currentScroll: window.scrollY,
       devicePixelRatio: window.devicePixelRatio,
     }),
@@ -141,45 +144,42 @@ async function captureFullPageByStitching(tabId: number): Promise<void> {
   const size = sizeResult?.result as {
     scrollHeight: number;
     viewportHeight: number;
-    viewportWidth: number;
     currentScroll: number;
     devicePixelRatio: number;
-  };
+  } | undefined;
 
   if (!size) throw new Error('페이지 크기를 가져올 수 없습니다');
 
-  const { scrollHeight, viewportHeight, devicePixelRatio } = size;
+  const { scrollHeight, viewportHeight, devicePixelRatio: dpr } = size;
   const numCaptures = Math.ceil(scrollHeight / viewportHeight);
 
-  console.log(`[ScrapeFlow] 풀 페이지 캡처 시작: ${scrollHeight}px 높이, ${numCaptures}장 캡처 필요`);
+  console.log(`[ScrapeFlow] 풀캡처: 높이${scrollHeight}px, ${numCaptures}장`);
 
-  // 2. 스크롤 전 페이지 맨 위로 이동
+  // 2. 맨 위로
   await chrome.scripting.executeScript({
     target: { tabId },
     func: () => { window.scrollTo(0, 0); },
   });
-  await wait(300);
+  await sleep(300);
 
-  // 3. 각 구간별로 스크롤 → 캡처
+  // 3. 스크롤하며 캡처
   const captures: string[] = [];
 
   for (let i = 0; i < numCaptures; i++) {
     const scrollY = i * viewportHeight;
 
-    // 스크롤 이동
+    // 스크롤 + fixed 요소 숨김
     await chrome.scripting.executeScript({
       target: { tabId },
-      func: (targetY: number, hideFixed: boolean) => {
+      func: (targetY: number, shouldHide: boolean) => {
         window.scrollTo(0, targetY);
-
-        // 두 번째 캡처부터 fixed/sticky 헤더 등을 숨겨서 중복 방지
-        if (hideFixed) {
-          const els = document.querySelectorAll('header, nav, [class*="header"], [class*="nav"], [class*="toolbar"], [class*="sticky"], [class*="fixed"]');
-          els.forEach((el) => {
-            const s = getComputedStyle(el);
-            if (s.position === 'fixed' || s.position === 'sticky') {
-              (el as HTMLElement).dataset['sfHidden'] = (el as HTMLElement).style.visibility;
-              (el as HTMLElement).style.visibility = 'hidden';
+        if (shouldHide) {
+          document.querySelectorAll('*').forEach((el) => {
+            const pos = getComputedStyle(el).position;
+            if (pos === 'fixed' || pos === 'sticky') {
+              const h = el as HTMLElement;
+              h.dataset['sfV'] = h.style.visibility;
+              h.style.visibility = 'hidden';
             }
           });
         }
@@ -187,34 +187,29 @@ async function captureFullPageByStitching(tabId: number): Promise<void> {
       args: [scrollY, i > 0],
     });
 
-    // 렌더링 + lazy-load 대기
-    await wait(400);
+    await sleep(400);
 
-    // 현재 보이는 화면 캡처
-    const dataUrl = await chrome.tabs.captureVisibleTab({
-      format: 'png',
-      quality: 100,
-    });
+    // captureVisibleTab — windowId를 명시적으로 전달
+    const dataUrl = await chrome.tabs.captureVisibleTab(windowId, { format: 'png' });
     captures.push(dataUrl);
-
-    console.log(`[ScrapeFlow] 캡처 ${i + 1}/${numCaptures} 완료 (scrollY=${scrollY})`);
+    console.log(`[ScrapeFlow] 캡처 ${i + 1}/${numCaptures}`);
   }
 
-  // 4. fixed/sticky 요소 복원 + 원래 스크롤 위치로
+  // 4. 복원
   await chrome.scripting.executeScript({
     target: { tabId },
-    func: (originalScroll: number) => {
-      document.querySelectorAll('[data-sf-hidden]').forEach((el) => {
-        (el as HTMLElement).style.visibility = (el as HTMLElement).dataset['sfHidden'] || '';
-        delete (el as HTMLElement).dataset['sfHidden'];
+    func: (origY: number) => {
+      document.querySelectorAll('[data-sf-v]').forEach((el) => {
+        const h = el as HTMLElement;
+        h.style.visibility = h.dataset['sfV'] || '';
+        delete h.dataset['sfV'];
       });
-      window.scrollTo(0, originalScroll);
+      window.scrollTo(0, origY);
     },
     args: [size.currentScroll],
   });
 
-  // 5. Service Worker에서 직접 OffscreenCanvas로 합성
-  //    (executeScript의 Promise return은 MV3에서 {} 로 직렬화되므로 사용 불가)
+  // 5. 한 장이면 바로 다운로드
   if (captures.length === 1) {
     await chrome.downloads.download({
       url: captures[0],
@@ -224,70 +219,71 @@ async function captureFullPageByStitching(tabId: number): Promise<void> {
     return;
   }
 
-  console.log(`[ScrapeFlow] ${captures.length}장 합성 시작 (OffscreenCanvas)`);
+  // 6. Service Worker에서 OffscreenCanvas로 합성
+  console.log(`[ScrapeFlow] ${captures.length}장 합성 시작`);
 
-  // data URL → ImageBitmap 변환
+  // data URL → Blob → ImageBitmap
   const bitmaps: ImageBitmap[] = [];
-  for (const dataUrl of captures) {
-    const resp = await fetch(dataUrl);
+  for (const url of captures) {
+    const resp = await fetch(url);
     const blob = await resp.blob();
-    const bitmap = await createImageBitmap(blob);
-    bitmaps.push(bitmap);
+    const bmp = await createImageBitmap(blob);
+    bitmaps.push(bmp);
   }
 
-  // 첫 이미지 크기 기준으로 Canvas 생성
-  const imgWidth = bitmaps[0].width;
-  const dpr = devicePixelRatio;
-  const totalCanvasHeight = Math.ceil(scrollHeight * dpr);
+  const imgW = bitmaps[0].width;
+  const imgH = bitmaps[0].height;
+  const totalH = Math.ceil(scrollHeight * dpr);
 
-  const canvas = new OffscreenCanvas(imgWidth, totalCanvasHeight);
-  const ctx = canvas.getContext('2d');
-  if (!ctx) throw new Error('OffscreenCanvas 2d context 생성 실패');
+  const canvas = new OffscreenCanvas(imgW, totalH);
+  const ctx = canvas.getContext('2d')!;
 
   for (let i = 0; i < bitmaps.length; i++) {
-    const drawY = Math.round(i * viewportHeight * dpr);
+    const y = Math.round(i * viewportHeight * dpr);
 
     if (i === bitmaps.length - 1 && bitmaps.length > 1) {
-      // 마지막 조각: 남은 높이만큼만 아래쪽에서 잘라 그림
-      const remaining = totalCanvasHeight - drawY;
-      if (remaining > 0 && remaining < bitmaps[i].height) {
-        const srcY = bitmaps[i].height - remaining;
-        ctx.drawImage(bitmaps[i], 0, srcY, imgWidth, remaining, 0, drawY, imgWidth, remaining);
+      // 마지막: 남은 높이만 아래쪽에서 잘라 그림
+      const remain = totalH - y;
+      if (remain > 0 && remain < imgH) {
+        ctx.drawImage(bitmaps[i], 0, imgH - remain, imgW, remain, 0, y, imgW, remain);
       } else {
-        ctx.drawImage(bitmaps[i], 0, drawY);
+        ctx.drawImage(bitmaps[i], 0, y);
       }
     } else {
-      ctx.drawImage(bitmaps[i], 0, drawY);
+      ctx.drawImage(bitmaps[i], 0, y);
     }
   }
-
-  // ImageBitmap 정리
   bitmaps.forEach((b) => b.close());
 
-  // Blob → base64 data URL → 다운로드
-  // (Service Worker에서 URL.createObjectURL의 blob: URL은 downloads API에서 접근 불가)
-  const resultBlob = await canvas.convertToBlob({ type: 'image/png' });
-  const arrayBuffer = await resultBlob.arrayBuffer();
-  const bytes = new Uint8Array(arrayBuffer);
-  let binary = '';
-  const chunkSize = 8192;
-  for (let i = 0; i < bytes.length; i += chunkSize) {
-    const chunk = bytes.subarray(i, i + chunkSize);
-    binary += String.fromCharCode(...chunk);
-  }
-  const finalDataUrl = `data:image/png;base64,${btoa(binary)}`;
+  // 7. Blob → base64 → 다운로드
+  const blob = await canvas.convertToBlob({ type: 'image/png' });
+  const ab = await blob.arrayBuffer();
+  const u8 = new Uint8Array(ab);
 
-  console.log(`[ScrapeFlow] 합성 완료: ${imgWidth}x${totalCanvasHeight}px, ${(arrayBuffer.byteLength / 1024 / 1024).toFixed(1)}MB`);
+  // String.fromCharCode spread 대신 안전한 청크 루프
+  const parts: string[] = [];
+  for (let i = 0; i < u8.length; i += 1024) {
+    const end = Math.min(i + 1024, u8.length);
+    let s = '';
+    for (let j = i; j < end; j++) {
+      s += String.fromCharCode(u8[j]);
+    }
+    parts.push(s);
+  }
+  const base64 = btoa(parts.join(''));
+  const finalUrl = `data:image/png;base64,${base64}`;
+
+  console.log(`[ScrapeFlow] 합성 완료: ${imgW}x${totalH}px, ${(ab.byteLength / 1048576).toFixed(1)}MB`);
 
   await chrome.downloads.download({
-    url: finalDataUrl,
+    url: finalUrl,
     filename: `scrapeflow-fullpage-${Date.now()}.png`,
     saveAs: true,
   });
 }
 
-function wait(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
+function sleep(ms: number): Promise<void> {
+  return new Promise((r) => setTimeout(r, ms));
 }
 
 // Side Panel 설정
