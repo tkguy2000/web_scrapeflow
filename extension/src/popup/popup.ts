@@ -12,14 +12,11 @@ const $btnOpenPanel = document.getElementById('btn-open-panel')!;
 const $emptyState = document.getElementById('empty-state')!;
 const $resultPreview = document.getElementById('result-preview')!;
 const $resultCount = document.getElementById('result-count')!;
-const $aiSection = document.getElementById('ai-section')!;
-const $aiPrompt = document.getElementById('ai-prompt') as HTMLInputElement;
-const $btnAiScrape = document.getElementById('btn-ai-scrape') as HTMLButtonElement;
 const $aiHint = document.getElementById('ai-hint')!;
 
 let lastResult: ScrapeResult | null = null;
 
-// 버튼 콘텐츠 복원 헬퍼
+// 버튼 콘텐츠 복원
 function resetButton(btn: HTMLButtonElement, icon: string, label: string): void {
   btn.textContent = '';
   const span = document.createElement('span');
@@ -29,7 +26,7 @@ function resetButton(btn: HTMLButtonElement, icon: string, label: string): void 
   btn.appendChild(document.createTextNode(` ${label}`));
 }
 
-// 안전한 통계 요소 생성
+// 통계 요소 생성
 function createStatElement(label: string, count: number): HTMLSpanElement {
   const span = document.createElement('span');
   span.className = 'stat';
@@ -48,9 +45,10 @@ function showResult(result: ScrapeResult): void {
   $resultPreview.classList.remove('hidden');
   $resultCount.textContent = `${result.rows.length}행 × ${result.columns.length}열 추출됨`;
   $emptyState.classList.add('hidden');
+  $aiHint.textContent = '';
 }
 
-// 현재 탭 정보 가져오기
+// 현재 탭 정보
 async function loadPageInfo(): Promise<void> {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   if (!tab?.id || !tab.url) return;
@@ -58,70 +56,63 @@ async function loadPageInfo(): Promise<void> {
   $pageTitle.textContent = tab.title ?? '알 수 없는 페이지';
   $pageUrl.textContent = tab.url;
 
-  // API 키 확인 — 있으면 AI 섹션 표시
-  const apiKey = await getApiKey();
-  if (apiKey) {
-    $aiSection.classList.remove('hidden');
-  }
-
-  // Content Script에 페이지 분석 요청
   try {
     const response = await chrome.tabs.sendMessage<Message, PageInfo>(tab.id, {
       type: MessageType.GET_PAGE_INFO,
     });
-    if (response) {
-      updatePageStats(response);
-    }
+    if (response) updatePageStats(response);
   } catch {
     $pageStats.textContent = '페이지 분석 대기 중...';
-    $btnScrape.disabled = true;
-    // API 키가 있으면 AI로도 추출 가능하므로 AI 버튼은 활성 유지
   }
 }
 
-// 페이지 통계 표시
 function updatePageStats(info: PageInfo): void {
   $pageStats.textContent = '';
-  let hasData = false;
-
-  if (info.tableCount > 0) {
-    $pageStats.appendChild(createStatElement('테이블', info.tableCount));
-    hasData = true;
-  }
-  if (info.listCount > 0) {
-    $pageStats.appendChild(createStatElement('리스트', info.listCount));
-    hasData = true;
-  }
-
-  if (hasData) {
-    $btnScrape.disabled = false;
-    $emptyState.classList.add('hidden');
-  } else {
-    $pageStats.textContent = '구조화된 데이터 없음';
-    $btnScrape.disabled = true;
-    // AI가 있으면 빈 상태를 보여주되 AI 안내 추가
-    $emptyState.classList.remove('hidden');
-    const apiKeyExists = $aiSection.classList.contains('hidden') === false;
-    if (apiKeyExists) {
-      const emptyDesc = $emptyState.querySelector('.empty-desc');
-      if (emptyDesc) emptyDesc.textContent = 'AI를 사용해서 원하는 데이터를 직접 추출해보세요';
-    }
-  }
+  if (info.tableCount > 0) $pageStats.appendChild(createStatElement('테이블', info.tableCount));
+  if (info.listCount > 0) $pageStats.appendChild(createStatElement('리스트', info.listCount));
+  if (!info.hasStructuredData) $pageStats.textContent = '구조화된 데이터 없음';
 }
 
-// 데이터 추출 시작
+// AI 추출 (원클릭 자동)
 $btnScrape.addEventListener('click', async () => {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   if (!tab?.id) return;
 
   $btnScrape.disabled = true;
-  $btnScrape.textContent = '추출 중...';
+  $btnScrape.textContent = '✨ AI 분석 중...';
+  $aiHint.textContent = '페이지를 분석하고 있습니다...';
 
   try {
-    const result = await chrome.tabs.sendMessage(tab.id, {
-      type: MessageType.SCRAPE_START,
-    });
+    // 1단계: 먼저 일반 스크래핑 시도 (빠름)
+    let result: ScrapeResult | null = null;
+    try {
+      result = await chrome.tabs.sendMessage(tab.id, {
+        type: MessageType.SCRAPE_START,
+      });
+    } catch { /* Content Script 미주입 */ }
 
+    // 2단계: 일반 스크래핑 결과가 부족하면 AI 시도
+    const hasGoodData = result?.rows && result.rows.length >= 3;
+
+    if (!hasGoodData) {
+      const apiKey = await getApiKey();
+      if (apiKey) {
+        $aiHint.textContent = 'AI가 데이터 구조를 추론하고 있습니다...';
+        try {
+          const aiResult = await chrome.runtime.sendMessage({
+            type: MessageType.SCRAPE_START,
+            payload: { tabId: tab.id, aiPrompt: 'Extract all structured data from this page. Identify the main repeating content items and extract all available fields.' },
+          });
+          if (aiResult?.rows?.length > 0) {
+            result = aiResult;
+          }
+        } catch (aiErr) {
+          console.warn('AI 추출 실패, 기본 결과 사용:', aiErr);
+        }
+      }
+    }
+
+    // 결과 표시
     if (result?.rows?.length > 0) {
       showResult(result);
       await chrome.runtime.sendMessage({
@@ -130,64 +121,15 @@ $btnScrape.addEventListener('click', async () => {
       });
     } else {
       $emptyState.classList.remove('hidden');
+      $aiHint.textContent = '추출할 데이터를 찾지 못했습니다';
     }
   } catch (err) {
-    console.error('스크래핑 실패:', err);
-    $emptyState.classList.remove('hidden');
-    const emptyTitle = $emptyState.querySelector('.empty-title');
-    if (emptyTitle) emptyTitle.textContent = '스크래핑에 실패했습니다';
+    console.error('추출 실패:', err);
+    $aiHint.textContent = '추출에 실패했습니다';
   } finally {
     $btnScrape.disabled = false;
-    resetButton($btnScrape, '📊', '데이터 추출');
+    resetButton($btnScrape, '✨', 'AI 추출');
   }
-});
-
-// AI 추출
-$btnAiScrape.addEventListener('click', async () => {
-  const prompt = $aiPrompt.value.trim();
-  if (!prompt) {
-    $aiHint.textContent = '추출할 데이터를 설명해주세요';
-    return;
-  }
-
-  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-  if (!tab?.id) return;
-
-  $btnAiScrape.disabled = true;
-  $btnAiScrape.textContent = '분석 중...';
-  $aiHint.textContent = 'AI가 페이지를 분석하고 있습니다...';
-
-  try {
-    // Background SW에 AI 스크래핑 요청
-    const result = await chrome.runtime.sendMessage({
-      type: MessageType.SCRAPE_START,
-      payload: { tabId: tab.id, aiPrompt: prompt },
-    });
-
-    if (result?.rows?.length > 0) {
-      showResult(result);
-      $aiHint.textContent = `AI가 ${result.columns.length}개 컬럼을 추론했습니다`;
-      await chrome.runtime.sendMessage({
-        type: MessageType.SCRAPE_RESULT,
-        payload: result,
-      });
-    } else {
-      $aiHint.textContent = 'AI가 데이터를 찾지 못했습니다. 다른 설명을 시도해보세요.';
-    }
-  } catch (err) {
-    console.error('AI 스크래핑 실패:', err);
-    $aiHint.textContent = String(err).includes('API_KEY_NOT_SET')
-      ? '설정에서 Claude API 키를 입력해주세요'
-      : 'AI 추출에 실패했습니다';
-  } finally {
-    $btnAiScrape.disabled = false;
-    $btnAiScrape.textContent = 'AI 추출';
-  }
-});
-
-// AI 입력 엔터키
-$aiPrompt.addEventListener('keydown', (e) => {
-  if (e.key === 'Enter') $btnAiScrape.click();
 });
 
 // 풀 페이지 캡처
@@ -197,21 +139,24 @@ $btnCapture.addEventListener('click', async () => {
 
   $btnCapture.disabled = true;
   $btnCapture.textContent = '캡처 중...';
+  $aiHint.textContent = '전체 페이지를 캡처하고 있습니다...';
 
   try {
     await chrome.runtime.sendMessage({
       type: MessageType.CAPTURE_FULL_PAGE,
       payload: { tabId: tab.id, format: 'png', fullPage: true },
     });
+    $aiHint.textContent = '캡처 완료! 다운로드를 확인하세요.';
   } catch (err) {
     console.error('캡처 실패:', err);
+    $aiHint.textContent = '캡처에 실패했습니다';
   } finally {
     $btnCapture.disabled = false;
     resetButton($btnCapture, '📸', '풀 페이지 캡처');
   }
 });
 
-// 빠른 내보내기 버튼들
+// 빠른 내보내기
 document.querySelectorAll('.btn-export-sm').forEach((btn) => {
   btn.addEventListener('click', () => {
     if (!lastResult) return;
@@ -228,7 +173,7 @@ $btnOpenPanel.addEventListener('click', async () => {
   window.close();
 });
 
-// 설정 패널 토글
+// 설정 패널
 const $btnSettings = document.getElementById('btn-settings')!;
 const $settingsPanel = document.getElementById('settings-panel')!;
 const $apiKeyInput = document.getElementById('api-key-input') as HTMLInputElement;
@@ -248,17 +193,11 @@ $btnSettings.addEventListener('click', async () => {
 
 $btnSaveKey.addEventListener('click', async () => {
   const key = $apiKeyInput.value.trim();
-  if (!key) {
-    $keyStatus.textContent = 'API 키를 입력해주세요';
-    return;
-  }
-
+  if (!key) { $keyStatus.textContent = 'API 키를 입력해주세요'; return; }
   const { setApiKey } = await import('../lib/ai');
   await setApiKey(key);
   $keyStatus.textContent = '저장되었습니다';
-  $aiSection.classList.remove('hidden');
   setTimeout(() => $settingsPanel.classList.add('hidden'), 1000);
 });
 
-// 초기화
 loadPageInfo();

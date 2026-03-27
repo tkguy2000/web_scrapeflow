@@ -22,10 +22,10 @@
 
     <!-- 액션 버튼 -->
     <div class="actions">
-      <button id="btn-scrape" class="btn btn-primary" disabled
-        aria-label="현재 페이지에서 데이터 추출" tabindex="1">
-        <span class="btn-icon" aria-hidden="true">📊</span>
-        데이터 추출
+      <button id="btn-scrape" class="btn btn-primary"
+        aria-label="AI가 자동으로 데이터 추출" tabindex="1">
+        <span class="btn-icon" aria-hidden="true">✨</span>
+        AI 추출
       </button>
       <button id="btn-capture" class="btn btn-secondary"
         aria-label="현재 페이지 전체 캡처" tabindex="2">
@@ -34,16 +34,8 @@
       </button>
     </div>
 
-    <!-- AI 자연어 입력 -->
-    <div id="ai-section" class="ai-section hidden">
-      <label class="ai-label" for="ai-prompt">AI에게 원하는 데이터를 설명하세요</label>
-      <div class="ai-input-row">
-        <input type="text" id="ai-prompt" class="ai-input"
-          placeholder="예: 상품명, 가격, 평점을 추출해줘" />
-        <button id="btn-ai-scrape" class="btn btn-ai">AI 추출</button>
-      </div>
-      <p class="ai-hint" id="ai-hint"></p>
-    </div>
+    <!-- AI 상태 -->
+    <p class="ai-hint" id="ai-hint"></p>
 
     <!-- 빈 상태 / 온보딩 -->
     <div id="empty-state" class="empty-state hidden">

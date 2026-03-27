@@ -212,54 +212,11 @@ body {
   color: #6b6b88;
 }
 
-/* AI 섹션 */
-.ai-section {
-  margin-bottom: 16px;
-}
-
-.ai-label {
-  display: block;
-  font-size: 12px;
-  font-weight: 600;
-  color: #9898b0;
-  margin-bottom: 6px;
-}
-
-.ai-input-row {
-  display: flex;
-  gap: 6px;
-}
-
-.ai-input {
-  flex: 1;
-  padding: 8px 10px;
-  border: 1px solid #3a3a5c;
-  border-radius: 6px;
-  font-size: 12px;
-  outline: none;
-  transition: border-color 0.15s;
-}
-
-.ai-input:focus {
-  border-color: #6c5ce7;
-}
-
-.btn-ai {
-  background: linear-gradient(135deg, #6c5ce7, #a29bfe);
-  color: #fff;
-  padding: 8px 12px;
-  font-size: 12px;
-  white-space: nowrap;
-}
-
-.btn-ai:hover {
-  opacity: 0.9;
-}
-
+/* AI 힌트 */
 .ai-hint {
   font-size: 11px;
   color: #9898b0;
-  margin-top: 4px;
+  margin-bottom: 8px;
   min-height: 16px;
 }
 
