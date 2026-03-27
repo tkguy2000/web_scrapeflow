@@ -14,20 +14,22 @@
     </header>
 
     <!-- 페이지 미리보기 -->
-    <div id="page-info" class="page-info">
+    <div id="page-info" class="page-info" role="region" aria-label="현재 페이지 정보">
       <div class="page-title" id="page-title">페이지 로딩 중...</div>
       <div class="page-url" id="page-url"></div>
-      <div class="page-stats" id="page-stats"></div>
+      <div class="page-stats" id="page-stats" aria-live="polite"></div>
     </div>
 
     <!-- 액션 버튼 -->
     <div class="actions">
-      <button id="btn-scrape" class="btn btn-primary" disabled>
-        <span class="btn-icon">📊</span>
+      <button id="btn-scrape" class="btn btn-primary" disabled
+        aria-label="현재 페이지에서 데이터 추출" tabindex="1">
+        <span class="btn-icon" aria-hidden="true">📊</span>
         데이터 추출
       </button>
-      <button id="btn-capture" class="btn btn-secondary">
-        <span class="btn-icon">📸</span>
+      <button id="btn-capture" class="btn btn-secondary"
+        aria-label="현재 페이지 전체 캡처" tabindex="2">
+        <span class="btn-icon" aria-hidden="true">📸</span>
         풀 페이지 캡처
       </button>
     </div>
