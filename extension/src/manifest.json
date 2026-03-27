@@ -12,6 +12,7 @@
     "downloads"
   ],
   "host_permissions": [
+    "<all_urls>",
     "https://api.anthropic.com/*"
   ],
   "action": {

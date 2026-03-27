@@ -114,7 +114,6 @@ async function handleCapture(opts: {
   const { tabId } = opts;
 
   try {
-    // CDP 방식 시도
     await captureWithCDP(tabId);
     return { ok: true };
   } catch (cdpErr) {
@@ -131,74 +130,213 @@ async function handleCapture(opts: {
 
 // CDP 풀 페이지 캡처
 async function captureWithCDP(tabId: number): Promise<void> {
-  // 디버거 연결
   await chrome.debugger.attach({ tabId }, '1.3');
 
   try {
-    // 페이지 전체 크기 가져오기
+    // 1. 먼저 페이지 끝까지 스크롤하여 lazy-load 이미지를 모두 로드
+    await chrome.scripting.executeScript({
+      target: { tabId },
+      func: async () => {
+        const delay = (ms: number) => new Promise(r => setTimeout(r, ms));
+        const totalHeight = document.body.scrollHeight;
+        const viewportHeight = window.innerHeight;
+        for (let y = 0; y < totalHeight; y += viewportHeight) {
+          window.scrollTo(0, y);
+          await delay(200);
+        }
+        // 맨 위로 복귀
+        window.scrollTo(0, 0);
+        await delay(300);
+      },
+    });
+
+    // 2. 페이지 전체 크기 가져오기
     const layoutResult = await chrome.debugger.sendCommand(
       { tabId },
       'Page.getLayoutMetrics'
     ) as {
       contentSize: { width: number; height: number };
+      cssContentSize: { width: number; height: number };
     };
 
-    const { width, height } = layoutResult.contentSize;
-    // Chrome Canvas 최대 크기 제한
-    const cappedHeight = Math.min(height, 32767);
+    // cssContentSize가 있으면 사용 (더 정확함)
+    const contentSize = layoutResult.cssContentSize ?? layoutResult.contentSize;
+    const width = Math.ceil(contentSize.width);
+    const height = Math.ceil(Math.min(contentSize.height, 16384)); // 안전한 최대값
 
-    // 뷰포트를 전체 페이지 크기로 설정
+    console.log(`[ScrapeFlow] 풀 페이지 캡처: ${width}x${height}`);
+
+    // 3. 뷰포트를 전체 페이지 크기로 확장
     await chrome.debugger.sendCommand({ tabId }, 'Emulation.setDeviceMetricsOverride', {
-      width: Math.ceil(width),
-      height: Math.ceil(cappedHeight),
+      width,
+      height,
       deviceScaleFactor: 1,
       mobile: false,
     });
 
-    // 스크린샷 캡처
+    // 렌더링 안정화 대기
+    await new Promise(r => setTimeout(r, 500));
+
+    // 4. 전체 페이지 캡처
     const screenshotResult = await chrome.debugger.sendCommand(
       { tabId },
       'Page.captureScreenshot',
       {
         format: 'png',
         captureBeyondViewport: true,
-        clip: {
-          x: 0,
-          y: 0,
-          width,
-          height: cappedHeight,
-          scale: 1,
-        },
+        clip: { x: 0, y: 0, width, height, scale: 1 },
       }
     ) as { data: string };
 
-    // 뷰포트 복원
+    // 5. 뷰포트 복원
     await chrome.debugger.sendCommand({ tabId }, 'Emulation.clearDeviceMetricsOverride');
 
-    // Base64 → Blob → 다운로드
+    // 6. 다운로드
     const dataUrl = `data:image/png;base64,${screenshotResult.data}`;
     await chrome.downloads.download({
       url: dataUrl,
-      filename: `scrapeflow-capture-${Date.now()}.png`,
+      filename: `scrapeflow-fullpage-${Date.now()}.png`,
       saveAs: true,
     });
   } finally {
-    // 디버거 항상 해제
     await chrome.debugger.detach({ tabId }).catch(() => {});
   }
 }
 
-// 스크롤 스티칭 폴백 캡처
+// 스크롤 스티칭 폴백 — CDP 사용 불가 시 실제 스크롤하며 캡처 후 합성
 async function captureWithScrollStitching(tabId: number): Promise<void> {
-  // 간단한 visible tab 캡처 (폴백)
-  const dataUrl = await chrome.tabs.captureVisibleTab(undefined, {
-    format: 'png',
-    quality: 100,
+  // Content Script로 페이지 정보 수집 + 스크롤 준비
+  const [pageInfo] = await chrome.scripting.executeScript({
+    target: { tabId },
+    func: () => {
+      // fixed/sticky 요소 숨기기 (중복 방지)
+      const fixedEls: { el: HTMLElement; original: string }[] = [];
+      document.querySelectorAll('*').forEach((el) => {
+        const style = getComputedStyle(el);
+        if (style.position === 'fixed' || style.position === 'sticky') {
+          const htmlEl = el as HTMLElement;
+          fixedEls.push({ el: htmlEl, original: htmlEl.style.visibility });
+        }
+      });
+
+      return {
+        totalHeight: Math.max(
+          document.body.scrollHeight,
+          document.documentElement.scrollHeight
+        ),
+        viewportHeight: window.innerHeight,
+        viewportWidth: window.innerWidth,
+        fixedCount: fixedEls.length,
+      };
+    },
   });
 
+  const info = pageInfo?.result as {
+    totalHeight: number;
+    viewportHeight: number;
+    viewportWidth: number;
+    fixedCount: number;
+  };
+
+  if (!info) throw new Error('페이지 정보를 가져올 수 없습니다');
+
+  const { totalHeight, viewportHeight } = info;
+  const numCaptures = Math.ceil(totalHeight / viewportHeight);
+  const captures: string[] = [];
+
+  console.log(`[ScrapeFlow] 스티칭 캡처: ${totalHeight}px, ${numCaptures}개 구간`);
+
+  // 첫 캡처는 fixed 요소 포함
+  for (let i = 0; i < numCaptures; i++) {
+    const scrollY = i * viewportHeight;
+
+    // 스크롤 이동
+    await chrome.scripting.executeScript({
+      target: { tabId },
+      func: (y: number, isFirst: boolean) => {
+        window.scrollTo(0, y);
+
+        // 첫 캡처 이후 fixed/sticky 요소 숨기기
+        if (!isFirst) {
+          document.querySelectorAll('*').forEach((el) => {
+            const style = getComputedStyle(el);
+            if (style.position === 'fixed' || style.position === 'sticky') {
+              (el as HTMLElement).style.visibility = 'hidden';
+            }
+          });
+        }
+      },
+      args: [scrollY, i === 0],
+    });
+
+    // 렌더링 대기 (lazy-load 포함)
+    await new Promise(r => setTimeout(r, 300));
+
+    // 현재 화면 캡처
+    const dataUrl = await chrome.tabs.captureVisibleTab(undefined, {
+      format: 'png',
+      quality: 100,
+    });
+    captures.push(dataUrl);
+  }
+
+  // fixed/sticky 요소 복원
+  await chrome.scripting.executeScript({
+    target: { tabId },
+    func: () => {
+      document.querySelectorAll('*').forEach((el) => {
+        const style = getComputedStyle(el);
+        if (style.position === 'fixed' || style.position === 'sticky') {
+          (el as HTMLElement).style.visibility = '';
+        }
+      });
+      window.scrollTo(0, 0);
+    },
+  });
+
+  // OffscreenDocument에서 Canvas로 스티칭
+  // MV3에서는 offscreen 대신 Content Script의 Canvas 사용
+  const [stitchResult] = await chrome.scripting.executeScript({
+    target: { tabId },
+    func: async (captureDataUrls: string[], totalH: number, vpHeight: number, vpWidth: number) => {
+      const canvas = document.createElement('canvas');
+      canvas.width = vpWidth * window.devicePixelRatio;
+      canvas.height = totalH * window.devicePixelRatio;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return null;
+
+      for (let i = 0; i < captureDataUrls.length; i++) {
+        const img = new Image();
+        await new Promise<void>((resolve, reject) => {
+          img.onload = () => resolve();
+          img.onerror = () => reject(new Error('이미지 로드 실패'));
+          img.src = captureDataUrls[i];
+        });
+
+        const y = i * vpHeight * window.devicePixelRatio;
+        // 마지막 캡처는 남은 높이만큼만 그리기
+        const remainingHeight = (totalH * window.devicePixelRatio) - y;
+        const drawHeight = Math.min(img.height, remainingHeight);
+        const sourceY = img.height - drawHeight; // 마지막 조각은 아래쪽만
+
+        if (i === captureDataUrls.length - 1 && captureDataUrls.length > 1) {
+          ctx.drawImage(img, 0, sourceY, img.width, drawHeight, 0, y, img.width, drawHeight);
+        } else {
+          ctx.drawImage(img, 0, y);
+        }
+      }
+
+      return canvas.toDataURL('image/png');
+    },
+    args: [captures, totalHeight, viewportHeight, info.viewportWidth],
+  });
+
+  const stitchedDataUrl = stitchResult?.result as string | null;
+  if (!stitchedDataUrl) throw new Error('스티칭 실패');
+
   await chrome.downloads.download({
-    url: dataUrl,
-    filename: `scrapeflow-capture-${Date.now()}.png`,
+    url: stitchedDataUrl,
+    filename: `scrapeflow-fullpage-${Date.now()}.png`,
     saveAs: true,
   });
 }
