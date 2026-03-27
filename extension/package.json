@@ -13,6 +13,7 @@
     "@crxjs/vite-plugin": "^2.0.0-beta.33",
     "@types/chrome": "^0.1.38",
     "@vitest/coverage-v8": "^4.1.2",
+    "dotenv": "^17.3.1",
     "jsdom": "^29.0.1",
     "typescript": "^6.0.2",
     "vite": "^8.0.3",

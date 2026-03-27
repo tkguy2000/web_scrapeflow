@@ -1,8 +1,11 @@
 // Claude API 연동 — 자연어로 데이터 구조 추론
-// API 키는 Extension storage에 저장
+// API 키: .env(빌드 시 주입) 또는 Extension storage에 저장
+
+declare const __CLAUDE_API_KEY__: string;
 
 const API_URL = 'https://api.anthropic.com/v1/messages';
 const MODEL = 'claude-haiku-4-5-20251001';
+const BUILD_TIME_KEY = typeof __CLAUDE_API_KEY__ !== 'undefined' ? __CLAUDE_API_KEY__ : '';
 
 export interface AIColumnSuggestion {
   name: string;
@@ -16,10 +19,12 @@ export interface AIScrapeResult {
   itemSelector: string;
 }
 
-// API 키 저장/조회
+// API 키 조회: storage 우선, 없으면 빌드 타임 키 사용
 export async function getApiKey(): Promise<string | null> {
   const data = await chrome.storage.sync.get('sf_api_key');
-  return data['sf_api_key'] ?? null;
+  if (data['sf_api_key']) return data['sf_api_key'];
+  if (BUILD_TIME_KEY) return BUILD_TIME_KEY;
+  return null;
 }
 
 export async function setApiKey(key: string): Promise<void> {
