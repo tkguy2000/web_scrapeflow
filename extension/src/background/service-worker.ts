@@ -136,17 +136,27 @@ async function captureWithCDP(tabId: number): Promise<void> {
     // 1. 먼저 페이지 끝까지 스크롤하여 lazy-load 이미지를 모두 로드
     await chrome.scripting.executeScript({
       target: { tabId },
-      func: async () => {
-        const delay = (ms: number) => new Promise(r => setTimeout(r, ms));
-        const totalHeight = document.body.scrollHeight;
-        const viewportHeight = window.innerHeight;
-        for (let y = 0; y < totalHeight; y += viewportHeight) {
-          window.scrollTo(0, y);
-          await delay(200);
-        }
-        // 맨 위로 복귀
-        window.scrollTo(0, 0);
-        await delay(300);
+      func: () => {
+        return new Promise<void>((resolve) => {
+          const totalHeight = document.body.scrollHeight;
+          const viewportHeight = window.innerHeight;
+          const positions: number[] = [];
+          for (let y = 0; y < totalHeight; y += viewportHeight) {
+            positions.push(y);
+          }
+          let index = 0;
+          function scrollNext() {
+            if (index < positions.length) {
+              window.scrollTo(0, positions[index]);
+              index++;
+              setTimeout(scrollNext, 200);
+            } else {
+              window.scrollTo(0, 0);
+              setTimeout(resolve, 300);
+            }
+          }
+          scrollNext();
+        });
       },
     });
 
@@ -294,39 +304,48 @@ async function captureWithScrollStitching(tabId: number): Promise<void> {
     },
   });
 
-  // OffscreenDocument에서 Canvas로 스티칭
-  // MV3에서는 offscreen 대신 Content Script의 Canvas 사용
+  // Content Script의 Canvas로 스티칭 합성
   const [stitchResult] = await chrome.scripting.executeScript({
     target: { tabId },
-    func: async (captureDataUrls: string[], totalH: number, vpHeight: number, vpWidth: number) => {
-      const canvas = document.createElement('canvas');
-      canvas.width = vpWidth * window.devicePixelRatio;
-      canvas.height = totalH * window.devicePixelRatio;
-      const ctx = canvas.getContext('2d');
-      if (!ctx) return null;
+    func: (captureDataUrls: string[], totalH: number, vpHeight: number, vpWidth: number) => {
+      return new Promise<string | null>((resolveAll) => {
+        const dpr = window.devicePixelRatio;
+        const canvas = document.createElement('canvas');
+        canvas.width = vpWidth * dpr;
+        canvas.height = totalH * dpr;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) { resolveAll(null); return; }
 
-      for (let i = 0; i < captureDataUrls.length; i++) {
-        const img = new Image();
-        await new Promise<void>((resolve, reject) => {
-          img.onload = () => resolve();
-          img.onerror = () => reject(new Error('이미지 로드 실패'));
-          img.src = captureDataUrls[i];
+        let loaded = 0;
+        const images: HTMLImageElement[] = [];
+
+        // 모든 이미지를 먼저 로드
+        captureDataUrls.forEach((dataUrl, idx) => {
+          const img = new Image();
+          img.onload = () => {
+            images[idx] = img;
+            loaded++;
+            if (loaded === captureDataUrls.length) {
+              // 전부 로드 후 Canvas에 그리기
+              for (let i = 0; i < images.length; i++) {
+                const drawY = i * vpHeight * dpr;
+                const remainH = (totalH * dpr) - drawY;
+                const drawH = Math.min(images[i].height, remainH);
+                const srcY = images[i].height - drawH;
+
+                if (i === images.length - 1 && images.length > 1) {
+                  ctx.drawImage(images[i], 0, srcY, images[i].width, drawH, 0, drawY, images[i].width, drawH);
+                } else {
+                  ctx.drawImage(images[i], 0, drawY);
+                }
+              }
+              resolveAll(canvas.toDataURL('image/png'));
+            }
+          };
+          img.onerror = () => { resolveAll(null); };
+          img.src = dataUrl;
         });
-
-        const y = i * vpHeight * window.devicePixelRatio;
-        // 마지막 캡처는 남은 높이만큼만 그리기
-        const remainingHeight = (totalH * window.devicePixelRatio) - y;
-        const drawHeight = Math.min(img.height, remainingHeight);
-        const sourceY = img.height - drawHeight; // 마지막 조각은 아래쪽만
-
-        if (i === captureDataUrls.length - 1 && captureDataUrls.length > 1) {
-          ctx.drawImage(img, 0, sourceY, img.width, drawHeight, 0, y, img.width, drawHeight);
-        } else {
-          ctx.drawImage(img, 0, y);
-        }
-      }
-
-      return canvas.toDataURL('image/png');
+      });
     },
     args: [captures, totalHeight, viewportHeight, info.viewportWidth],
   });
