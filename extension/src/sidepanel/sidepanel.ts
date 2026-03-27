@@ -357,7 +357,13 @@ $('btn-next').addEventListener('click', () => {
 // === Navigation ===
 $btnBack.addEventListener('click', () => {
   if (isCloneMode) {
-    if (cloneStep > 1) goToCloneStep(cloneStep - 1);
+    if (cloneStep > 1) {
+      goToCloneStep(cloneStep - 1);
+    } else {
+      // clone Step 1에서 뒤로 → 일반 모드로 복귀
+      isCloneMode = false;
+      goToStep(1);
+    }
   } else {
     if (currentStep > 1) goToStep(currentStep - 1);
   }
@@ -365,10 +371,11 @@ $btnBack.addEventListener('click', () => {
 
 $btnNext.addEventListener('click', async () => {
   if (isCloneMode) {
-    if (cloneStep === 2) {
+    if (cloneStep === 1) {
+      // Step 1: 구조 감지 실행 (감지 없이 스킵 불가)
+      await runCloneDetect();
+    } else if (cloneStep === 2) {
       await runCloneExtract();
-    } else if (cloneStep < 3) {
-      goToCloneStep(cloneStep + 1);
     }
   } else {
     if (currentStep === 3) {
@@ -420,11 +427,16 @@ function goToCloneStep(step: number): void {
   $stepLabel.textContent = `${step}/3`;
   $('step-indicator').classList.remove('hidden');
 
+  // 하단 네비게이션 표시
+  $('bottom-nav').classList.remove('hidden');
+
   switch (step) {
     case 1:
       $('clone-step1').classList.remove('hidden');
       $btnBack.classList.add('hidden');
-      $btnNext.classList.add('hidden');
+      // "다음" 버튼을 "구조 감지 시작"으로 표시
+      $btnNext.classList.remove('hidden');
+      $btnNext.textContent = '✨ 구조 감지 시작';
       break;
     case 2:
       $('clone-step2').classList.remove('hidden');
@@ -744,13 +756,27 @@ document.addEventListener('click', (e) => {
 });
 
 // storage 변경 감지
-chrome.storage.onChanged.addListener((changes) => {
+chrome.storage.onChanged.addListener(async (changes) => {
+  // 스크래핑 결과 갱신
   if (changes['scrapeflow_results']?.newValue) {
     const results = changes['scrapeflow_results'].newValue as ScrapeResult[];
     if (results.length > 0) {
       currentResult = results[0];
       if (currentStep === 4) renderResultTable();
     }
+  }
+
+  // Clone 모드 전환 감지 — 사이드패널이 이미 열려있을 때
+  if (changes['sf_mode']?.newValue === 'clone') {
+    await chrome.storage.local.remove('sf_mode');
+    isCloneMode = true;
+    // clone 상태 초기화
+    cloneStep = 1;
+    clonePatterns = [];
+    cloneAiResult = null;
+    cloneResult = null;
+    clonePage = 1;
+    goToCloneStep(1);
   }
 });
 
