@@ -191,7 +191,7 @@ async function captureFullPageByStitching(tabId: number): Promise<void> {
     await wait(400);
 
     // 현재 보이는 화면 캡처
-    const dataUrl = await chrome.tabs.captureVisibleTab(undefined, {
+    const dataUrl = await chrome.tabs.captureVisibleTab({
       format: 'png',
       quality: 100,
     });
@@ -204,8 +204,7 @@ async function captureFullPageByStitching(tabId: number): Promise<void> {
   await chrome.scripting.executeScript({
     target: { tabId },
     func: (originalScroll: number) => {
-      const els = document.querySelectorAll('[data-sf-hidden]');
-      els.forEach((el) => {
+      document.querySelectorAll('[data-sf-hidden]').forEach((el) => {
         (el as HTMLElement).style.visibility = (el as HTMLElement).dataset['sfHidden'] || '';
         delete (el as HTMLElement).dataset['sfHidden'];
       });
@@ -214,9 +213,9 @@ async function captureFullPageByStitching(tabId: number): Promise<void> {
     args: [size.currentScroll],
   });
 
-  // 5. Canvas로 합성 — Content Script에서 실행
+  // 5. Service Worker에서 직접 OffscreenCanvas로 합성
+  //    (executeScript의 Promise return은 MV3에서 {} 로 직렬화되므로 사용 불가)
   if (captures.length === 1) {
-    // 한 장이면 합성 불필요
     await chrome.downloads.download({
       url: captures[0],
       filename: `scrapeflow-fullpage-${Date.now()}.png`,
@@ -225,65 +224,51 @@ async function captureFullPageByStitching(tabId: number): Promise<void> {
     return;
   }
 
-  const [stitchResult] = await chrome.scripting.executeScript({
-    target: { tabId },
-    func: (
-      dataUrls: string[],
-      pageHeight: number,
-      vpHeight: number,
-      dpr: number
-    ) => {
-      return new Promise<string | null>((done) => {
-        const canvasW = 0; // 첫 이미지에서 결정
-        const canvasH = Math.ceil(pageHeight * dpr);
-        let loaded = 0;
-        const imgs: HTMLImageElement[] = [];
+  console.log(`[ScrapeFlow] ${captures.length}장 합성 시작 (OffscreenCanvas)`);
 
-        dataUrls.forEach((url, idx) => {
-          const img = new Image();
-          img.onload = () => {
-            imgs[idx] = img;
-            loaded++;
-            if (loaded < dataUrls.length) return;
+  // data URL → ImageBitmap 변환
+  const bitmaps: ImageBitmap[] = [];
+  for (const dataUrl of captures) {
+    const resp = await fetch(dataUrl);
+    const blob = await resp.blob();
+    const bitmap = await createImageBitmap(blob);
+    bitmaps.push(bitmap);
+  }
 
-            // 전부 로드됨 — Canvas 생성
-            const w = imgs[0].width;
-            const h = canvasH;
-            const canvas = document.createElement('canvas');
-            canvas.width = w;
-            canvas.height = h;
-            const ctx = canvas.getContext('2d');
-            if (!ctx) { done(null); return; }
+  // 첫 이미지 크기 기준으로 Canvas 생성
+  const imgWidth = bitmaps[0].width;
+  const dpr = devicePixelRatio;
+  const totalCanvasHeight = Math.ceil(scrollHeight * dpr);
 
-            for (let i = 0; i < imgs.length; i++) {
-              const drawY = Math.round(i * vpHeight * dpr);
+  const canvas = new OffscreenCanvas(imgWidth, totalCanvasHeight);
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error('OffscreenCanvas 2d context 생성 실패');
 
-              if (i === imgs.length - 1 && imgs.length > 1) {
-                // 마지막 조각: 남은 높이만큼만 아래쪽에서 잘라서 그림
-                const remaining = h - drawY;
-                if (remaining > 0 && remaining < imgs[i].height) {
-                  const srcY = imgs[i].height - remaining;
-                  ctx.drawImage(imgs[i], 0, srcY, w, remaining, 0, drawY, w, remaining);
-                } else {
-                  ctx.drawImage(imgs[i], 0, drawY);
-                }
-              } else {
-                ctx.drawImage(imgs[i], 0, drawY);
-              }
-            }
+  for (let i = 0; i < bitmaps.length; i++) {
+    const drawY = Math.round(i * viewportHeight * dpr);
 
-            done(canvas.toDataURL('image/png'));
-          };
-          img.onerror = () => done(null);
-          img.src = url;
-        });
-      });
-    },
-    args: [captures, scrollHeight, viewportHeight, devicePixelRatio],
-  });
+    if (i === bitmaps.length - 1 && bitmaps.length > 1) {
+      // 마지막 조각: 남은 높이만큼만 아래쪽에서 잘라 그림
+      const remaining = totalCanvasHeight - drawY;
+      if (remaining > 0 && remaining < bitmaps[i].height) {
+        const srcY = bitmaps[i].height - remaining;
+        ctx.drawImage(bitmaps[i], 0, srcY, imgWidth, remaining, 0, drawY, imgWidth, remaining);
+      } else {
+        ctx.drawImage(bitmaps[i], 0, drawY);
+      }
+    } else {
+      ctx.drawImage(bitmaps[i], 0, drawY);
+    }
+  }
 
-  const finalDataUrl = stitchResult?.result as string | null;
-  if (!finalDataUrl) throw new Error('이미지 합성에 실패했습니다');
+  // ImageBitmap 정리
+  bitmaps.forEach((b) => b.close());
+
+  // Blob → Object URL → 다운로드
+  const resultBlob = await canvas.convertToBlob({ type: 'image/png' });
+  const finalDataUrl = URL.createObjectURL(resultBlob);
+
+  console.log(`[ScrapeFlow] 합성 완료: ${imgWidth}x${totalCanvasHeight}px`);
 
   await chrome.downloads.download({
     url: finalDataUrl,
