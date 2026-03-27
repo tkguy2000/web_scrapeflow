@@ -8,6 +8,7 @@ const $pageUrl = document.getElementById('page-url')!;
 const $pageStats = document.getElementById('page-stats')!;
 const $btnScrape = document.getElementById('btn-scrape') as HTMLButtonElement;
 const $btnCapture = document.getElementById('btn-capture') as HTMLButtonElement;
+const $btnClone = document.getElementById('btn-clone') as HTMLButtonElement;
 const $btnOpenPanel = document.getElementById('btn-open-panel')!;
 const $emptyState = document.getElementById('empty-state')!;
 const $resultPreview = document.getElementById('result-preview')!;
@@ -113,7 +114,7 @@ $btnScrape.addEventListener('click', async () => {
     }
 
     // 결과 표시
-    if (result?.rows?.length > 0) {
+    if (result && result.rows && result.rows.length > 0) {
       showResult(result);
       await chrome.runtime.sendMessage({
         type: MessageType.SCRAPE_RESULT,
@@ -167,6 +168,15 @@ document.querySelectorAll('.btn-export-sm').forEach((btn) => {
     const format = (btn as HTMLElement).dataset['format'] as ExportFormat;
     downloadData(lastResult, format);
   });
+});
+
+// Site Clone — sidepanel을 clone 모드로 열기
+$btnClone.addEventListener('click', async () => {
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  if (!tab?.windowId) return;
+  await chrome.storage.local.set({ sf_mode: 'clone' });
+  await chrome.sidePanel.open({ windowId: tab.windowId });
+  window.close();
 });
 
 // Side Panel 열기

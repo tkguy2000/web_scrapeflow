@@ -19,6 +19,13 @@ export enum MessageType {
 
   // Side Panel
   OPEN_SIDE_PANEL = 'OPEN_SIDE_PANEL',
+
+  // 사이트 클론
+  CLONE_DETECT_PATTERNS = 'CLONE_DETECT_PATTERNS',
+  CLONE_EXTRACT_DATA = 'CLONE_EXTRACT_DATA',
+  CLONE_EXTRACT_ASSETS = 'CLONE_EXTRACT_ASSETS',
+  CLONE_RESULT = 'CLONE_RESULT',
+  CLONE_PROGRESS = 'CLONE_PROGRESS',
 }
 
 // 스크래핑 결과 행
@@ -67,4 +74,49 @@ export interface Message<T = unknown> {
 export interface CaptureOptions {
   format: 'png' | 'pdf';
   fullPage: boolean;
+}
+
+// === 사이트 클론 타입 ===
+
+// AI 클론 컬럼 — 속성(attribute) 지정 가능
+export interface AICloneColumn {
+  name: string;
+  selector: string;
+  type: 'text' | 'link' | 'image' | 'file' | 'number';
+  attribute?: string; // 기본 textContent, 'href', 'src', 'data-src' 등
+}
+
+// AI 클론 추론 결과
+export interface AICloneResult {
+  containerSelector: string;
+  itemSelector: string;
+  columns: AICloneColumn[];
+  pageType: 'listing' | 'detail' | 'blog' | 'docs' | 'portfolio' | 'other';
+}
+
+// 감지된 반복 패턴 (Content Script → SW 직렬화용)
+export interface DetectedPatternInfo {
+  containerSelector: string;
+  itemCount: number;
+  signature: string;
+  score: number;
+  sampleHtml: string; // 첫 2개 아이템 outerHTML
+}
+
+// 에셋 정보
+export interface SiteAssets {
+  stylesheets: { href: string | null; cssText: string }[];
+  images: { src: string; alt?: string; width: number; height: number; isBackground: boolean }[];
+  fonts: { family: string; weight: string; src?: string }[];
+  colorPalette: string[];
+  typographyScale: { element: string; fontSize: string; fontWeight: string; lineHeight: string; fontFamily: string }[];
+}
+
+// 클론 최종 결과
+export interface CloneResult {
+  data: ScrapeResult;
+  assets: SiteAssets | null;
+  pageType: string;
+  sourceUrl: string;
+  timestamp: number;
 }

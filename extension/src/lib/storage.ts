@@ -15,7 +15,7 @@ export async function saveResult(result: ScrapeResult): Promise<void> {
 // 결과 목록 조회
 export async function getResults(): Promise<ScrapeResult[]> {
   const data = await chrome.storage.local.get(STORAGE_KEY);
-  return data[STORAGE_KEY] ?? [];
+  return (data[STORAGE_KEY] as ScrapeResult[] | undefined) ?? [];
 }
 
 // 결과 삭제

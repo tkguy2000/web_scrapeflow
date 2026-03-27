@@ -1,7 +1,7 @@
 import { MessageType } from '../lib/types';
-import type { Message, ScrapeResult } from '../lib/types';
+import type { Message, ScrapeResult, DetectedPatternInfo, AICloneResult } from '../lib/types';
 import { saveResult } from '../lib/storage';
-import { inferDataStructure } from '../lib/ai';
+import { inferDataStructure, inferCloneStructure } from '../lib/ai';
 
 // 메시지 라우팅
 chrome.runtime.onMessage.addListener(
@@ -28,9 +28,175 @@ async function handleMessage(message: Message): Promise<unknown> {
     case MessageType.OPEN_SIDE_PANEL:
       return { ok: true };
 
+    // 사이트 클론: 패턴 감지 + AI 추론
+    case MessageType.CLONE_DETECT_PATTERNS:
+      return handleCloneDetect(message.payload as { tabId: number });
+
+    // 사이트 클론: AI 셀렉터로 데이터 추출
+    case MessageType.CLONE_EXTRACT_DATA:
+      return handleCloneExtract(message.payload as {
+        tabId: number;
+        containerSelector: string;
+        itemSelector: string;
+        columns: { name: string; selector: string; type: string; attribute?: string }[];
+      });
+
     default:
       return { error: `알 수 없는 메시지 타입: ${message.type}` };
   }
+}
+
+// 사이트 클론: 패턴 감지 → AI 추론
+async function handleCloneDetect(opts: { tabId: number }): Promise<{
+  patterns: DetectedPatternInfo[];
+  aiResult?: AICloneResult;
+  error?: string;
+}> {
+  const { tabId } = opts;
+
+  // Content Script에 직접 메시지를 보내서 패턴 감지
+  let patterns: DetectedPatternInfo[] = [];
+  try {
+    const response = await chrome.tabs.sendMessage(tabId, {
+      type: MessageType.CLONE_DETECT_PATTERNS,
+    });
+    patterns = (response as { patterns: DetectedPatternInfo[] })?.patterns ?? [];
+  } catch {
+    // Content Script 미주입 시 executeScript로 폴백
+    const [result] = await chrome.scripting.executeScript({
+      target: { tabId },
+      func: () => {
+        // 인라인으로 간단한 패턴 감지 실행
+        const allElements = document.body.querySelectorAll<HTMLElement>('*');
+        const found: Array<{ containerSelector: string; itemCount: number; signature: string; score: number; sampleHtml: string }> = [];
+
+        for (const container of allElements) {
+          const children = Array.from(container.children) as HTMLElement[];
+          if (children.length < 3) continue;
+          if (container.closest('nav, header, footer')) continue;
+
+          const sigs = new Map<string, HTMLElement[]>();
+          for (const child of children) {
+            if (child.children.length < 1) continue;
+            const sig = child.tagName + ':' + Array.from(child.children).map(c => c.tagName).sort().join(',');
+            if (!sigs.has(sig)) sigs.set(sig, []);
+            sigs.get(sig)!.push(child);
+          }
+
+          for (const [sig, items] of sigs) {
+            if (items.length < 3 || items.length / children.length < 0.7) continue;
+            const sample = items.slice(0, 2).map(i => i.outerHTML).join('\n').slice(0, 4000);
+            // 간단한 셀렉터 생성
+            let sel = container.tagName.toLowerCase();
+            if (container.id) sel = '#' + container.id;
+            else if (container.className) {
+              const cls = container.className.split(/\s+/).filter(c => c.length > 2).slice(0, 2);
+              if (cls.length > 0) sel += '.' + cls.join('.');
+            }
+            found.push({ containerSelector: sel, itemCount: items.length, signature: sig, score: items.length * 2, sampleHtml: sample });
+            break;
+          }
+        }
+
+        found.sort((a, b) => b.score - a.score);
+        return { patterns: found.slice(0, 5) };
+      },
+    });
+    patterns = (result?.result as { patterns: DetectedPatternInfo[] })?.patterns ?? [];
+  }
+
+  if (patterns.length === 0) {
+    return { patterns: [], error: '반복 패턴을 찾을 수 없습니다' };
+  }
+
+  // 2. 가장 점수가 높은 패턴으로 AI 추론
+  const bestPattern = patterns[0];
+  const tab = await chrome.tabs.get(tabId);
+  const pageUrl = tab.url ?? '';
+
+  try {
+    const aiResult = await inferCloneStructure(bestPattern.sampleHtml, pageUrl);
+    return { patterns, aiResult };
+  } catch (err) {
+    console.warn('[ScrapeFlow] AI 클론 추론 실패:', err);
+    return { patterns, error: `AI 추론 실패: ${String(err)}` };
+  }
+}
+
+// 사이트 클론: AI 셀렉터로 데이터 추출
+async function handleCloneExtract(opts: {
+  tabId: number;
+  containerSelector: string;
+  itemSelector: string;
+  columns: { name: string; selector: string; type: string; attribute?: string }[];
+}): Promise<ScrapeResult> {
+  const { tabId, containerSelector, itemSelector, columns } = opts;
+
+  // Content Script에 추출 요청
+  let extracted: { columns: string[]; rows: Record<string, string>[] } | undefined;
+
+  try {
+    const response = await chrome.tabs.sendMessage(tabId, {
+      type: MessageType.CLONE_EXTRACT_DATA,
+      payload: { containerSelector, itemSelector, columns },
+    });
+    extracted = response as { columns: string[]; rows: Record<string, string>[] };
+  } catch {
+    // Content Script 미주입 시 executeScript로 폴백
+    const [result] = await chrome.scripting.executeScript({
+      target: { tabId },
+      func: (contSel: string, itemSel: string, cols: Array<{ name: string; selector: string; type: string; attribute?: string }>) => {
+        const container = document.querySelector(contSel);
+        if (!container) return { columns: cols.map(c => c.name), rows: [] as Record<string, string>[] };
+
+        const items = container.querySelectorAll(itemSel);
+        const rows: Record<string, string>[] = [];
+
+        items.forEach(item => {
+          const row: Record<string, string> = {};
+          for (const col of cols) {
+            const el = item.querySelector(col.selector);
+            if (!el) { row[col.name] = ''; continue; }
+
+            if (col.attribute) {
+              let val = el.getAttribute(col.attribute) ?? '';
+              if ((col.type === 'link' || col.type === 'image' || col.type === 'file') && val) {
+                try { val = new URL(val, window.location.href).href; } catch { /* 원본 유지 */ }
+              }
+              row[col.name] = val;
+            } else if (col.type === 'link' || col.type === 'file') {
+              row[col.name] = (el as HTMLAnchorElement).href ?? '';
+            } else if (col.type === 'image') {
+              row[col.name] = (el as HTMLImageElement).src || el.getAttribute('data-src') || '';
+            } else {
+              row[col.name] = (el.textContent ?? '').trim();
+            }
+          }
+          rows.push(row);
+        });
+
+        return { columns: cols.map(c => c.name), rows };
+      },
+      args: [containerSelector, itemSelector, columns],
+    });
+    extracted = result?.result as { columns: string[]; rows: Record<string, string>[] } | undefined;
+  }
+
+  const tab = await chrome.tabs.get(tabId);
+
+  const scrapeResult: ScrapeResult = {
+    columns: extracted?.columns ?? [],
+    rows: extracted?.rows ?? [],
+    url: tab.url ?? '',
+    title: tab.title ?? '',
+    timestamp: Date.now(),
+  };
+
+  if (scrapeResult.rows.length > 0) {
+    await saveResult(scrapeResult);
+  }
+
+  return scrapeResult;
 }
 
 // 스크래핑 결과 저장

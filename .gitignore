@@ -4,3 +4,10 @@ dist/
 *.log
 .env
 .env.*
+
+# 추출된 결과물 (생성 데이터)
+extracted/
+
+# Claude Code 로컬 설정
+.claude/settings.local.json
+.claude/plans/

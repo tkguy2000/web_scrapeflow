@@ -22,7 +22,7 @@ export interface AIScrapeResult {
 // API 키 조회: storage 우선, 없으면 빌드 타임 키 사용
 export async function getApiKey(): Promise<string | null> {
   const data = await chrome.storage.sync.get('sf_api_key');
-  if (data['sf_api_key']) return data['sf_api_key'];
+  if (data['sf_api_key']) return data['sf_api_key'] as string;
   if (BUILD_TIME_KEY) return BUILD_TIME_KEY;
   return null;
 }
@@ -110,6 +110,90 @@ Respond ONLY with valid JSON in this exact format:
   const parsed = JSON.parse(jsonMatch[0]) as AIScrapeResult;
 
   // 기본 유효성 검사
+  if (!parsed.columns || !Array.isArray(parsed.columns) || parsed.columns.length === 0) {
+    throw new Error('AI_PARSE_ERROR: Invalid columns');
+  }
+
+  return parsed;
+}
+
+// === 사이트 클론용 AI 추론 ===
+
+import type { AICloneResult } from './types';
+
+// 클론 모드: 실제 HTML 콘텐츠를 포함하여 AI에 전송
+export async function inferCloneStructure(
+  sampleHtml: string,
+  pageUrl: string
+): Promise<AICloneResult> {
+  const apiKey = await getApiKey();
+  if (!apiKey) {
+    throw new Error('API_KEY_NOT_SET');
+  }
+
+  const systemPrompt = `You are a web scraping expert. You are given sample HTML from a page that contains repeated items (e.g., product cards, blog posts, tips, listings).
+
+Analyze the HTML and determine:
+1. What CSS selector identifies the container of all repeated items
+2. What CSS selector identifies each individual item within the container
+3. For EVERY meaningful field in each item, provide a CSS selector and type
+4. What type of page this is
+
+Extract ALL fields you can find: titles, descriptions, URLs, images, download links, metadata, etc.
+Do NOT skip any fields - the user wants a complete dataset.
+
+For selectors, use the SIMPLEST possible CSS selectors that uniquely identify each element.
+If an element needs an attribute value (like href or src), specify it in the "attribute" field.
+
+Respond ONLY with valid JSON in this exact format:
+{
+  "containerSelector": "CSS selector for the outer container",
+  "itemSelector": "CSS selector for each repeated item (relative to container)",
+  "columns": [
+    { "name": "Human Readable Name", "selector": "CSS selector relative to item", "type": "text|link|image|file|number", "attribute": "optional: href|src|data-src|etc" }
+  ],
+  "pageType": "listing|detail|blog|docs|portfolio|other"
+}`;
+
+  // 샘플 HTML을 최대 6000자로 제한 (토큰 절약하면서도 충분한 정보 전달)
+  const trimmedHtml = sampleHtml.slice(0, 6000);
+
+  const response = await fetch(API_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': apiKey,
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true',
+    },
+    body: JSON.stringify({
+      model: MODEL,
+      max_tokens: 2048,
+      system: systemPrompt,
+      messages: [
+        {
+          role: 'user',
+          content: `URL: ${pageUrl}\n\nHere are 2 sample items from the page. Analyze their structure and extract ALL fields:\n\n${trimmedHtml}`,
+        },
+      ],
+    }),
+  });
+
+  if (!response.ok) {
+    const errBody = await response.text();
+    throw new Error(`API_ERROR: ${response.status} ${errBody.slice(0, 200)}`);
+  }
+
+  const data = await response.json();
+  const content = data.content?.[0]?.text ?? '';
+
+  const jsonMatch = content.match(/\{[\s\S]*\}/);
+  if (!jsonMatch) {
+    throw new Error('AI_PARSE_ERROR: No JSON in response');
+  }
+
+  const parsed = JSON.parse(jsonMatch[0]) as AICloneResult;
+
   if (!parsed.columns || !Array.isArray(parsed.columns) || parsed.columns.length === 0) {
     throw new Error('AI_PARSE_ERROR: Invalid columns');
   }

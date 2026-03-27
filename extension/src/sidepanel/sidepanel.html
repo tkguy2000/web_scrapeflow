@@ -163,6 +163,76 @@
       </div>
     </div>
 
+    <!-- === Clone 모드 === -->
+
+    <!-- Clone Step 1: 구조 감지 -->
+    <div id="clone-step1" class="step-content hidden">
+      <h2 class="step-title">🏗️ 사이트 구조 감지</h2>
+      <p class="clone-desc">페이지에서 반복되는 데이터 패턴을 자동으로 찾습니다.</p>
+      <button id="btn-clone-detect" class="btn btn-ai btn-lg">
+        <span>✨</span> 구조 감지 시작
+      </button>
+
+      <!-- 감지 결과 카드 -->
+      <div id="clone-patterns" class="clone-patterns hidden"></div>
+
+      <!-- 에러 메시지 -->
+      <p id="clone-error" class="clone-error hidden"></p>
+    </div>
+
+    <!-- Clone Step 2: 필드 확인/편집 -->
+    <div id="clone-step2" class="step-content hidden">
+      <h2 class="step-title">필드 확인</h2>
+      <p class="clone-desc">AI가 추론한 컬럼을 확인하고 수정하세요.</p>
+
+      <div id="clone-fields" class="field-list"></div>
+
+      <!-- 미리보기 테이블 -->
+      <div id="clone-preview" class="clone-preview hidden">
+        <h3 class="clone-preview-title">미리보기</h3>
+        <div class="table-wrapper" style="max-height: 200px;">
+          <table id="clone-preview-table" class="data-table">
+            <thead id="clone-preview-head"></thead>
+            <tbody id="clone-preview-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Clone Step 3: 내보내기 -->
+    <div id="clone-step3" class="step-content hidden">
+      <h2 class="step-title">데이터 내보내기</h2>
+      <p class="clone-desc">추출된 데이터를 원하는 형식으로 내보냅니다.</p>
+
+      <div id="clone-result-info" class="clone-result-info"></div>
+
+      <div class="clone-export-options">
+        <button class="btn btn-primary btn-lg clone-export-btn" data-clone-format="json">
+          📄 JSON 다운로드
+        </button>
+        <button class="btn btn-outline btn-lg clone-export-btn" data-clone-format="csv">
+          📊 CSV 다운로드
+        </button>
+        <button class="btn btn-outline btn-lg clone-export-btn" data-clone-format="clipboard">
+          📋 클립보드 복사
+        </button>
+      </div>
+
+      <!-- 결과 테이블 -->
+      <div class="table-wrapper" style="margin-top: 16px;">
+        <table id="clone-result-table" class="data-table">
+          <thead id="clone-result-head"></thead>
+          <tbody id="clone-result-body"></tbody>
+        </table>
+      </div>
+
+      <div id="clone-pagination" class="pagination hidden">
+        <button id="clone-btn-prev" class="btn btn-ghost btn-sm" disabled>&lt;</button>
+        <span id="clone-page-info">1</span>
+        <button id="clone-btn-next" class="btn btn-ghost btn-sm">&gt;</button>
+      </div>
+    </div>
+
     <!-- 프로그레스 -->
     <div id="progress-section" class="progress-section hidden">
       <div class="progress-bar">

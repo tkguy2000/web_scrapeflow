@@ -137,6 +137,16 @@ body {
   background: rgba(139, 92, 246, 0.25);
 }
 
+.btn-clone {
+  background: linear-gradient(135deg, #6c5ce7, #00cec9);
+  color: #fff;
+  width: 100%;
+}
+
+.btn-clone:hover:not(:disabled) {
+  background: linear-gradient(135deg, #5a4bd1, #00b4b0);
+}
+
 .btn-link {
   background: none;
   color: #6c5ce7;

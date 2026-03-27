@@ -1,5 +1,6 @@
 import { MessageType } from '../lib/types';
-import type { PageInfo, ScrapeResult, ScrapeRow, Message } from '../lib/types';
+import type { PageInfo, ScrapeResult, ScrapeRow, Message, DetectedPatternInfo } from '../lib/types';
+import { detectRepeatedPatterns, detectPatternsSerializable, extractWithCloneSelectors } from './pattern-detector';
 
 // === 감지 ===
 
@@ -282,13 +283,16 @@ function getPageInfo(): PageInfo {
   const lists = detectLists();
   const cards = detectCardGroups();
   const dls = detectDefinitionLists();
+  const patterns = detectRepeatedPatterns();
+
+  const hasBasic = tables.length > 0 || lists.length > 0 || cards.length > 0 || dls.length > 0;
 
   return {
     url: window.location.href,
     title: document.title,
     tableCount: tables.length,
-    listCount: lists.length + cards.length + dls.length,
-    hasStructuredData: tables.length > 0 || lists.length > 0 || cards.length > 0 || dls.length > 0,
+    listCount: lists.length + cards.length + dls.length + patterns.length,
+    hasStructuredData: hasBasic || patterns.length > 0,
   };
 }
 
@@ -338,6 +342,18 @@ function scrapeAll(): ScrapeResult {
     }
   }
 
+  // 5. 범용 패턴 감지 (폴백) — 위 방법으로 못 찾으면 구조적 분석
+  if (bestResult.rows.length === 0) {
+    const patterns = detectRepeatedPatterns();
+    if (patterns.length > 0) {
+      const best = patterns[0];
+      const result = extractCardData(best.items);
+      if (result.rows.length > bestResult.rows.length) {
+        bestResult = result;
+      }
+    }
+  }
+
   return {
     columns: bestResult.columns,
     rows: bestResult.rows,
@@ -359,6 +375,35 @@ chrome.runtime.onMessage.addListener(
         try {
           const result = scrapeAll();
           sendResponse(result);
+        } catch (err) {
+          sendResponse({ error: String(err) });
+        }
+        break;
+
+      // 사이트 클론: 반복 패턴 감지
+      case MessageType.CLONE_DETECT_PATTERNS:
+        try {
+          const patterns = detectPatternsSerializable();
+          sendResponse({ patterns });
+        } catch (err) {
+          sendResponse({ error: String(err) });
+        }
+        break;
+
+      // 사이트 클론: AI 셀렉터로 데이터 추출
+      case MessageType.CLONE_EXTRACT_DATA:
+        try {
+          const payload = message.payload as {
+            containerSelector: string;
+            itemSelector: string;
+            columns: { name: string; selector: string; type: string; attribute?: string }[];
+          };
+          const extracted = extractWithCloneSelectors(
+            payload.containerSelector,
+            payload.itemSelector,
+            payload.columns
+          );
+          sendResponse(extracted);
         } catch (err) {
           sendResponse({ error: String(err) });
         }
