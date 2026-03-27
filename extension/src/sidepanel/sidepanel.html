@@ -3,48 +3,148 @@
 <head>
   <meta charset="UTF-8">
   <link rel="stylesheet" href="sidepanel.css">
-  <title>ScrapeFlow - 결과</title>
+  <title>ScrapeFlow</title>
 </head>
 <body>
   <div id="app">
+    <!-- 헤더 -->
     <header class="header">
       <h1 class="logo">ScrapeFlow</h1>
-      <div class="header-actions">
-        <select id="export-format" class="select" aria-label="내보내기 형식">
-          <option value="json">JSON</option>
-          <option value="csv">CSV</option>
-          <option value="html">HTML</option>
-          <option value="clipboard">클립보드 복사</option>
-        </select>
-        <button id="btn-export" class="btn btn-primary" disabled>내보내기</button>
-      </div>
+      <span class="badge">AI</span>
     </header>
 
-    <!-- 빈 상태 -->
-    <div id="empty-state" class="empty-state">
-      <div class="empty-icon">📋</div>
-      <p class="empty-title">아직 추출된 데이터가 없습니다</p>
-      <p class="empty-desc">Popup에서 "데이터 추출" 버튼을 클릭하여 시작하세요</p>
-      <div class="onboarding">
-        <p class="onboarding-step">1. 데이터가 있는 웹페이지를 열어주세요</p>
-        <p class="onboarding-step">2. ScrapeFlow 아이콘을 클릭하세요</p>
-        <p class="onboarding-step">3. "데이터 추출" 버튼을 누르면 자동으로 감지합니다</p>
+    <!-- 스텝 인디케이터 -->
+    <div class="steps" id="step-indicator">
+      <div class="step-bar">
+        <div class="step-fill" id="step-fill"></div>
+      </div>
+      <div class="step-label" id="step-label">1/3</div>
+    </div>
+
+    <!-- Step 1: 데이터 소스 선택 -->
+    <div id="step1" class="step-content">
+      <h2 class="step-title">데이터 소스 선택</h2>
+      <div class="option-list">
+        <button class="option-card selected" data-source="current" id="opt-current">
+          <span class="option-icon">🌐</span>
+          <div class="option-info">
+            <div class="option-label">현재 페이지</div>
+            <div class="option-desc" id="current-page-info">로딩 중...</div>
+          </div>
+        </button>
+        <button class="option-card" data-source="links" id="opt-links">
+          <span class="option-icon">🔗</span>
+          <div class="option-info">
+            <div class="option-label">링크</div>
+            <div class="option-desc">추출할 URL 목록을 붙여넣어 일괄 처리하세요.</div>
+          </div>
+        </button>
+        <button class="option-card" data-source="file" id="opt-file">
+          <span class="option-icon">📄</span>
+          <div class="option-info">
+            <div class="option-label">파일</div>
+            <div class="option-desc">문서 및 이미지에서 데이터 추출</div>
+          </div>
+        </button>
       </div>
     </div>
 
-    <!-- 결과 영역 -->
-    <div id="result-container" class="result-container hidden">
-      <!-- 결과 정보 바 -->
-      <div class="result-info">
-        <span id="result-summary"></span>
+    <!-- Step 2: 페이지 네비게이션 설정 -->
+    <div id="step2" class="step-content hidden">
+      <h2 class="step-title">페이지 네비게이션 설정</h2>
+      <div class="option-list">
+        <button class="option-card ai-option selected" data-nav="auto" id="opt-auto">
+          <span class="option-icon">✨</span>
+          <div class="option-info">
+            <div class="option-label">AI 자동 감지</div>
+          </div>
+        </button>
+        <div class="divider-text">또는</div>
+        <button class="option-card" data-nav="none" id="opt-none">
+          <span class="option-icon">📄</span>
+          <div class="option-info">
+            <div class="option-label">페이지 구분 없음</div>
+            <div class="option-desc">현재 페이지의 내용만 스크래핑합니다.</div>
+          </div>
+        </button>
+        <button class="option-card" data-nav="click" id="opt-click">
+          <span class="option-icon">🔗</span>
+          <div class="option-info">
+            <div class="option-label">클릭 페이지 이동</div>
+            <div class="option-desc">페이지 링크를 클릭하여 내용을 스크래핑합니다.</div>
+          </div>
+        </button>
+        <button class="option-card" data-nav="scroll" id="opt-scroll">
+          <span class="option-icon">⏳</span>
+          <div class="option-info">
+            <div class="option-label">무한 스크롤</div>
+            <div class="option-desc">아래로 스크롤하여 항목을 불러오며 스크래핑합니다.</div>
+          </div>
+        </button>
+      </div>
+    </div>
+
+    <!-- Step 3: 스크래이퍼 템플릿 선택 -->
+    <div id="step3" class="step-content hidden">
+      <h2 class="step-title">스크래이퍼 템플릿 선택</h2>
+
+      <button class="option-card new-template" id="btn-new-template">
+        <span class="option-icon">➕</span>
+        <div class="option-info">
+          <div class="option-label">새 스크래이퍼 템플릿</div>
+        </div>
+      </button>
+
+      <!-- 템플릿 에디터 -->
+      <div id="template-editor" class="template-editor hidden">
+        <input type="text" id="template-name" class="template-name-input" value="Scraper 1" />
+
+        <div class="field-actions">
+          <button id="btn-ai-fields" class="btn btn-ai">
+            <span>✨</span> AI 추천 필드
+          </button>
+          <div class="divider-text">또는</div>
+          <button id="btn-manual-fields" class="btn btn-outline">
+            <span>⌨️</span> 직접 입력
+          </button>
+        </div>
+
+        <!-- 필드 목록 -->
+        <div id="field-list" class="field-list"></div>
+
+        <button id="btn-add-field" class="btn btn-ghost btn-sm hidden">+ 필드 추가</button>
+
+        <!-- 서브페이지 옵션 -->
+        <button id="btn-subpage" class="btn btn-outline btn-sm hidden">
+          <span>🔗</span> 하위 페이지 수집
+        </button>
+      </div>
+
+      <!-- 저장된 템플릿 목록 -->
+      <div id="template-list" class="template-list"></div>
+    </div>
+
+    <!-- 결과 화면 -->
+    <div id="result-view" class="step-content hidden">
+      <div class="result-header-bar">
+        <h2 class="step-title">결과 테이블</h2>
         <div class="result-actions">
-          <button id="btn-clear" class="btn btn-ghost btn-sm" aria-label="결과 지우기">지우기</button>
+          <button id="btn-copy" class="btn btn-outline btn-sm">복사</button>
+          <div class="dropdown">
+            <button id="btn-download" class="btn btn-primary btn-sm">↓ 다운로드</button>
+            <div id="download-menu" class="dropdown-menu hidden">
+              <button class="dropdown-item" data-format="xlsx">다운로드 Excel</button>
+              <button class="dropdown-item" data-format="csv">다운로드 CSV</button>
+              <button class="dropdown-item" data-format="json">다운로드 JSON</button>
+            </div>
+          </div>
         </div>
       </div>
 
-      <!-- 히스토리 탭 -->
-      <div id="history-bar" class="history-bar hidden">
-        <select id="history-select" class="select" aria-label="히스토리 선택"></select>
+      <div class="result-meta">
+        <span id="row-count">행 수: 0</span>
+        <span class="result-meta-sep">|</span>
+        <span id="result-source"></span>
       </div>
 
       <!-- 데이터 테이블 -->
@@ -55,10 +155,33 @@
         </table>
       </div>
 
-      <!-- 내보내기 성공 토스트 -->
-      <div id="toast" class="toast hidden" role="status" aria-live="polite">
-        <span id="toast-message"></span>
+      <!-- 페이지네이션 -->
+      <div id="pagination" class="pagination hidden">
+        <button id="btn-prev" class="btn btn-ghost btn-sm" disabled>&lt;</button>
+        <span id="page-info">1</span>
+        <button id="btn-next" class="btn btn-ghost btn-sm">&gt;</button>
       </div>
+    </div>
+
+    <!-- 프로그레스 -->
+    <div id="progress-section" class="progress-section hidden">
+      <div class="progress-bar">
+        <div class="progress-fill" id="progress-fill"></div>
+      </div>
+      <div class="progress-status" id="progress-status"></div>
+      <div class="progress-detail" id="progress-detail"></div>
+    </div>
+
+    <!-- 소스 정보 바 -->
+    <div id="source-bar" class="source-bar hidden">
+      <span class="source-label">소스:</span>
+      <span id="source-name" class="source-name"></span>
+    </div>
+
+    <!-- 하단 네비게이션 -->
+    <div class="bottom-nav">
+      <button id="btn-back" class="btn btn-ghost hidden">&larr;</button>
+      <button id="btn-next-step" class="btn btn-primary btn-lg">다음 →</button>
     </div>
   </div>
 
