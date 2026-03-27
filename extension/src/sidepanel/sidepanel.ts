@@ -42,7 +42,12 @@ const $fieldList = $('field-list');
 // === Step navigation ===
 function goToStep(step: number): void {
   currentStep = step;
+  isCloneMode = false; // 일반 모드 명시
   [$step1, $step2, $step3, $resultView].forEach((el) => el.classList.add('hidden'));
+  // clone step도 숨김
+  $('clone-step1').classList.add('hidden');
+  $('clone-step2').classList.add('hidden');
+  $('clone-step3').classList.add('hidden');
 
   if (step <= 3) {
     $stepFill.style.width = `${(step / 3) * 100}%`;
@@ -415,8 +420,9 @@ setupOptionCards('step2', (v) => {
 
 function goToCloneStep(step: number): void {
   cloneStep = step;
+  isCloneMode = true; // clone 모드 명시
 
-  // 모든 스텝 숨김
+  // 모든 스텝 숨김 (일반 + clone)
   [$step1, $step2, $step3, $resultView].forEach((el) => el.classList.add('hidden'));
   $('clone-step1').classList.add('hidden');
   $('clone-step2').classList.add('hidden');
