@@ -11,8 +11,7 @@
     "downloads"
   ],
   "host_permissions": [
-    "<all_urls>",
-    "https://api.anthropic.com/*"
+    "<all_urls>"
   ],
   "action": {
     "default_popup": "src/popup/popup.html",
@@ -32,7 +31,7 @@
   "content_scripts": [
     {
       "matches": ["<all_urls>"],
-      "js": ["src/content/pattern-detector.ts", "src/content/scraper.ts", "src/content/selector.ts"],
+      "js": ["src/content/scraper.ts", "src/content/selector.ts"],
       "run_at": "document_idle"
     }
   ],
