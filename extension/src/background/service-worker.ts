@@ -264,11 +264,20 @@ async function captureFullPageByStitching(tabId: number): Promise<void> {
   // ImageBitmap 정리
   bitmaps.forEach((b) => b.close());
 
-  // Blob → Object URL → 다운로드
+  // Blob → base64 data URL → 다운로드
+  // (Service Worker에서 URL.createObjectURL의 blob: URL은 downloads API에서 접근 불가)
   const resultBlob = await canvas.convertToBlob({ type: 'image/png' });
-  const finalDataUrl = URL.createObjectURL(resultBlob);
+  const arrayBuffer = await resultBlob.arrayBuffer();
+  const bytes = new Uint8Array(arrayBuffer);
+  let binary = '';
+  const chunkSize = 8192;
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    const chunk = bytes.subarray(i, i + chunkSize);
+    binary += String.fromCharCode(...chunk);
+  }
+  const finalDataUrl = `data:image/png;base64,${btoa(binary)}`;
 
-  console.log(`[ScrapeFlow] 합성 완료: ${imgWidth}x${totalCanvasHeight}px`);
+  console.log(`[ScrapeFlow] 합성 완료: ${imgWidth}x${totalCanvasHeight}px, ${(arrayBuffer.byteLength / 1024 / 1024).toFixed(1)}MB`);
 
   await chrome.downloads.download({
     url: finalDataUrl,
