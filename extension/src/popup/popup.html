@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=400">
+  <link rel="stylesheet" href="popup.css">
+  <title>ScrapeFlow</title>
+</head>
+<body>
+  <div id="app">
+    <header class="header">
+      <h1 class="logo">ScrapeFlow</h1>
+      <span class="badge">AI</span>
+    </header>
+
+    <!-- 페이지 미리보기 -->
+    <div id="page-info" class="page-info">
+      <div class="page-title" id="page-title">페이지 로딩 중...</div>
+      <div class="page-url" id="page-url"></div>
+      <div class="page-stats" id="page-stats"></div>
+    </div>
+
+    <!-- 액션 버튼 -->
+    <div class="actions">
+      <button id="btn-scrape" class="btn btn-primary" disabled>
+        <span class="btn-icon">📊</span>
+        데이터 추출
+      </button>
+      <button id="btn-capture" class="btn btn-secondary">
+        <span class="btn-icon">📸</span>
+        풀 페이지 캡처
+      </button>
+    </div>
+
+    <!-- 빈 상태 / 온보딩 -->
+    <div id="empty-state" class="empty-state hidden">
+      <p class="empty-title">이 페이지에서 추출할 데이터가 없습니다</p>
+      <p class="empty-desc">테이블이나 리스트가 있는 페이지에서 사용해보세요</p>
+    </div>
+
+    <!-- 결과 미리보기 -->
+    <div id="result-preview" class="result-preview hidden">
+      <div class="result-header">
+        <span id="result-count">0행 추출됨</span>
+        <button id="btn-open-panel" class="btn btn-link">상세 보기 →</button>
+      </div>
+    </div>
+
+    <!-- 푸터 -->
+    <footer class="footer">
+      <button id="btn-settings" class="btn btn-ghost">설정</button>
+      <span class="version">v0.1.0</span>
+    </footer>
+  </div>
+
+  <script type="module" src="popup.ts"></script>
+</body>
+</html>

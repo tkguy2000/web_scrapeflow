@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <link rel="stylesheet" href="sidepanel.css">
+  <title>ScrapeFlow - 결과</title>
+</head>
+<body>
+  <div id="app">
+    <header class="header">
+      <h1 class="logo">ScrapeFlow</h1>
+      <div class="header-actions">
+        <select id="export-format" class="select" aria-label="내보내기 형식">
+          <option value="json">JSON</option>
+          <option value="csv">CSV</option>
+          <option value="html">HTML</option>
+          <option value="clipboard">클립보드 복사</option>
+        </select>
+        <button id="btn-export" class="btn btn-primary" disabled>내보내기</button>
+      </div>
+    </header>
+
+    <!-- 빈 상태 -->
+    <div id="empty-state" class="empty-state">
+      <div class="empty-icon">📋</div>
+      <p class="empty-title">아직 추출된 데이터가 없습니다</p>
+      <p class="empty-desc">Popup에서 "데이터 추출" 버튼을 클릭하여 시작하세요</p>
+    </div>
+
+    <!-- 결과 테이블 -->
+    <div id="result-container" class="result-container hidden">
+      <div class="result-info">
+        <span id="result-summary"></span>
+      </div>
+      <div class="table-wrapper">
+        <table id="result-table" class="data-table">
+          <thead id="table-head"></thead>
+          <tbody id="table-body"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="sidepanel.ts"></script>
+</body>
+</html>

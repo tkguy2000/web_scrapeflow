@@ -5,7 +5,13 @@
       "Edit(~/.claude/skills/project-setup/**)",
       "Bash(mkdir -p \"d:/Claude/web_ScrapeFlow/.claude/plans\")",
       "Bash(mkdir -p \"d:/Claude/web_ScrapeFlow/.claude/skills\")",
-      "Bash(npm init:*)"
+      "Bash(npm init:*)",
+      "Skill(gstack)",
+      "Skill(gstack:*)",
+      "Skill(autoplan)",
+      "Skill(autoplan:*)",
+      "Bash(npm install:*)",
+      "Bash(npx vite:*)"
     ],
     "additionalDirectories": [
       "C:\\Users\\tkguy\\.claude\\projects\\d--Claude-web-ScrapeFlow\\memory"
