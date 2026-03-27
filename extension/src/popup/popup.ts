@@ -1,7 +1,6 @@
 import { MessageType } from '../lib/types';
 import type { PageInfo, ScrapeResult, ExportFormat, Message } from '../lib/types';
 import { downloadData } from '../lib/export';
-import { getApiKey } from '../lib/ai';
 
 // === 다국어 텍스트 ===
 type I18nValue = string | ((...args: string[]) => string);
@@ -10,8 +9,8 @@ const i18n: Record<string, Record<string, I18nValue>> = {
     pageLoading: '페이지 로딩 중...',
     unknownPage: '알 수 없는 페이지',
     analyzing: '페이지 분석 대기 중...',
-    aiExtract: 'AI 추출',
-    aiAnalyzing: '✨ AI 분석 중...',
+    aiExtract: '데이터 추출',
+    aiAnalyzing: '📊 분석 중...',
     fullCapture: '풀 페이지 캡처',
     capturing: '캡처 중...',
     siteClone: 'Site Clone',
@@ -31,7 +30,7 @@ const i18n: Record<string, Record<string, I18nValue>> = {
     noStructured: '구조화된 데이터 없음',
     unit: '개',
     analyzingPage: '페이지를 분석하고 있습니다...',
-    aiInferring: 'AI가 데이터 구조를 추론하고 있습니다...',
+    aiInferring: '데이터 구조를 분석하고 있습니다...',
     notFound: '추출할 데이터를 찾지 못했습니다',
     extractFailed: '추출에 실패했습니다',
     capturingPage: '전체 페이지를 캡처하고 있습니다...',
@@ -42,8 +41,8 @@ const i18n: Record<string, Record<string, I18nValue>> = {
     pageLoading: 'Loading page...',
     unknownPage: 'Unknown page',
     analyzing: 'Waiting for page analysis...',
-    aiExtract: 'AI Extract',
-    aiAnalyzing: '✨ Analyzing...',
+    aiExtract: 'Extract Data',
+    aiAnalyzing: '📊 Analyzing...',
     fullCapture: 'Full Page Capture',
     capturing: 'Capturing...',
     siteClone: 'Site Clone',
@@ -63,7 +62,7 @@ const i18n: Record<string, Record<string, I18nValue>> = {
     noStructured: 'No structured data',
     unit: '',
     analyzingPage: 'Analyzing page...',
-    aiInferring: 'AI is inferring data structure...',
+    aiInferring: 'Analyzing data structure...',
     notFound: 'No extractable data found',
     extractFailed: 'Extraction failed',
     capturingPage: 'Capturing full page...',
@@ -130,7 +129,7 @@ function applyLang(lang: string): void {
   document.getElementById('btn-save-key')!.textContent = t('save');
 
   // 버튼 텍스트
-  resetButton($btnScrape, '✨', t('aiExtract'));
+  resetButton($btnScrape, '📊', t('aiExtract'));
   resetButton($btnCapture, '📸', t('fullCapture'));
   // Site Clone 버튼 복원
   const $clone = document.getElementById('btn-clone')!;
@@ -225,34 +224,13 @@ $btnScrape.addEventListener('click', async () => {
   $aiHint.textContent = t('analyzingPage');
 
   try {
-    // 1단계: 먼저 일반 스크래핑 시도 (빠름)
+    // DOM 기반 스크래핑 (pattern-detector 포함)
     let result: ScrapeResult | null = null;
     try {
       result = await chrome.tabs.sendMessage(tab.id, {
         type: MessageType.SCRAPE_START,
       });
     } catch { /* Content Script 미주입 */ }
-
-    // 2단계: 일반 스크래핑 결과가 부족하면 AI 시도
-    const hasGoodData = result?.rows && result.rows.length >= 3;
-
-    if (!hasGoodData) {
-      const apiKey = await getApiKey();
-      if (apiKey) {
-        $aiHint.textContent = t('aiInferring');
-        try {
-          const aiResult = await chrome.runtime.sendMessage({
-            type: MessageType.SCRAPE_START,
-            payload: { tabId: tab.id, aiPrompt: 'Extract all structured data from this page. Identify the main repeating content items and extract all available fields.' },
-          });
-          if (aiResult?.rows?.length > 0) {
-            result = aiResult;
-          }
-        } catch (aiErr) {
-          console.warn('AI 추출 실패, 기본 결과 사용:', aiErr);
-        }
-      }
-    }
 
     // 결과 표시
     if (result && result.rows && result.rows.length > 0) {
@@ -270,7 +248,7 @@ $btnScrape.addEventListener('click', async () => {
     $aiHint.textContent = t('extractFailed');
   } finally {
     $btnScrape.disabled = false;
-    resetButton($btnScrape, '✨', t('aiExtract'));
+    resetButton($btnScrape, '📊', t('aiExtract'));
   }
 });
 
@@ -338,6 +316,7 @@ const $keyStatus = document.getElementById('key-status')!;
 $btnSettings.addEventListener('click', async () => {
   $settingsPanel.classList.toggle('hidden');
   if (!$settingsPanel.classList.contains('hidden')) {
+    const { getApiKey } = await import('../lib/ai');
     const key = await getApiKey();
     if (key) {
       $apiKeyInput.value = key;
