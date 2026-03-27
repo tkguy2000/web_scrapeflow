@@ -123,7 +123,7 @@ async function handleCloneDetect(opts: { tabId: number }): Promise<{
   }
 }
 
-// 사이트 클론: AI 셀렉터로 데이터 추출
+// 사이트 클론: AI 셀렉터로 데이터 추출 — 다단계 폴백
 async function handleCloneExtract(opts: {
   tabId: number;
   containerSelector: string;
@@ -132,54 +132,162 @@ async function handleCloneExtract(opts: {
 }): Promise<ScrapeResult> {
   const { tabId, containerSelector, itemSelector, columns } = opts;
 
-  // Content Script에 추출 요청
-  let extracted: { columns: string[]; rows: Record<string, string>[] } | undefined;
+  // executeScript로 직접 추출 (가장 안정적)
+  const [result] = await chrome.scripting.executeScript({
+    target: { tabId },
+    func: (contSel: string, itemSel: string, cols: Array<{ name: string; selector: string; type: string; attribute?: string }>) => {
+      // 셀렉터에서 값 추출하는 헬퍼
+      function extractValue(el: Element, col: { type: string; attribute?: string }): string {
+        if (col.attribute) {
+          let val = el.getAttribute(col.attribute) ?? '';
+          if ((col.type === 'link' || col.type === 'image' || col.type === 'file') && val) {
+            try { val = new URL(val, window.location.href).href; } catch { /* 원본 유지 */ }
+          }
+          return val;
+        }
+        if (col.type === 'link' || col.type === 'file') return (el as HTMLAnchorElement).href ?? '';
+        if (col.type === 'image') return (el as HTMLImageElement).src || el.getAttribute('data-src') || '';
+        return (el.textContent ?? '').trim();
+      }
 
-  try {
-    const response = await chrome.tabs.sendMessage(tabId, {
-      type: MessageType.CLONE_EXTRACT_DATA,
-      payload: { containerSelector, itemSelector, columns },
-    });
-    extracted = response as { columns: string[]; rows: Record<string, string>[] };
-  } catch {
-    // Content Script 미주입 시 executeScript로 폴백
-    const [result] = await chrome.scripting.executeScript({
-      target: { tabId },
-      func: (contSel: string, itemSel: string, cols: Array<{ name: string; selector: string; type: string; attribute?: string }>) => {
-        const container = document.querySelector(contSel);
-        if (!container) return { columns: cols.map(c => c.name), rows: [] as Record<string, string>[] };
-
-        const items = container.querySelectorAll(itemSel);
+      // 아이템에서 컬럼별 데이터 추출
+      function extractFromItems(items: NodeListOf<Element> | Element[]): Record<string, string>[] {
         const rows: Record<string, string>[] = [];
-
-        items.forEach(item => {
+        const itemArr = Array.from(items);
+        for (const item of itemArr) {
           const row: Record<string, string> = {};
+          let hasData = false;
           for (const col of cols) {
             const el = item.querySelector(col.selector);
             if (!el) { row[col.name] = ''; continue; }
+            row[col.name] = extractValue(el, col);
+            if (row[col.name]) hasData = true;
+          }
+          if (hasData) rows.push(row);
+        }
+        return rows;
+      }
 
-            if (col.attribute) {
-              let val = el.getAttribute(col.attribute) ?? '';
-              if ((col.type === 'link' || col.type === 'image' || col.type === 'file') && val) {
-                try { val = new URL(val, window.location.href).href; } catch { /* 원본 유지 */ }
-              }
-              row[col.name] = val;
-            } else if (col.type === 'link' || col.type === 'file') {
-              row[col.name] = (el as HTMLAnchorElement).href ?? '';
-            } else if (col.type === 'image') {
-              row[col.name] = (el as HTMLImageElement).src || el.getAttribute('data-src') || '';
-            } else {
-              row[col.name] = (el.textContent ?? '').trim();
+      // === 전략 1: container + itemSelector 정확 매칭 ===
+      let container = document.querySelector(contSel);
+      if (container) {
+        const items = container.querySelectorAll(itemSel);
+        if (items.length > 0) {
+          const rows = extractFromItems(items);
+          if (rows.length > 0) {
+            console.log('[ScrapeFlow Clone] 전략1 성공:', contSel, itemSel, rows.length + '행');
+            return { columns: cols.map(c => c.name), rows, strategy: 'exact' };
+          }
+        }
+      }
+
+      // === 전략 2: itemSelector만으로 document 전체에서 검색 ===
+      const globalItems = document.querySelectorAll(itemSel);
+      if (globalItems.length > 0) {
+        const rows = extractFromItems(globalItems);
+        if (rows.length > 0) {
+          console.log('[ScrapeFlow Clone] 전략2 성공: document > ' + itemSel, rows.length + '행');
+          return { columns: cols.map(c => c.name), rows, strategy: 'global-item' };
+        }
+      }
+
+      // === 전략 3: containerSelector 변형 시도 ===
+      // AI가 너무 구체적인 셀렉터를 줄 경우 단순화
+      const simplifiedContSel = contSel
+        .replace(/:nth-of-type\(\d+\)/g, '')
+        .replace(/:nth-child\(\d+\)/g, '')
+        .split(' > ').slice(-2).join(' > ');
+      if (simplifiedContSel !== contSel) {
+        container = document.querySelector(simplifiedContSel);
+        if (container) {
+          const items = container.querySelectorAll(itemSel);
+          if (items.length > 0) {
+            const rows = extractFromItems(items);
+            if (rows.length > 0) {
+              console.log('[ScrapeFlow Clone] 전략3 성공:', simplifiedContSel, rows.length + '행');
+              return { columns: cols.map(c => c.name), rows, strategy: 'simplified' };
             }
           }
-          rows.push(row);
-        });
+        }
+      }
 
-        return { columns: cols.map(c => c.name), rows };
-      },
-      args: [containerSelector, itemSelector, columns],
-    });
-    extracted = result?.result as { columns: string[]; rows: Record<string, string>[] } | undefined;
+      // === 전략 4: 첫 번째 컬럼 셀렉터로 아이템 역추적 ===
+      // 컬럼 셀렉터가 매칭되는 요소의 부모를 아이템으로 간주
+      const firstCol = cols[0];
+      if (firstCol) {
+        const colElements = document.querySelectorAll(firstCol.selector);
+        if (colElements.length >= 2) {
+          // 각 매칭 요소의 공통 부모 레벨을 찾기
+          const parents = Array.from(colElements).map(el => el.parentElement).filter(Boolean) as Element[];
+          // 부모가 같은 태그+클래스를 가지는지 확인
+          if (parents.length >= 2) {
+            const firstTag = parents[0].tagName;
+            const matchingParents = parents.filter(p => p.tagName === firstTag);
+            if (matchingParents.length >= 2) {
+              const rows = extractFromItems(matchingParents);
+              if (rows.length > 0) {
+                console.log('[ScrapeFlow Clone] 전략4 성공: 컬럼 역추적,', rows.length + '행');
+                return { columns: cols.map(c => c.name), rows, strategy: 'reverse-lookup' };
+              }
+            }
+          }
+        }
+      }
+
+      // === 전략 5: 가장 넓은 범위 — 모든 컬럼을 document에서 직접 추출 ===
+      const directRows: Record<string, string>[] = [];
+      const colArrays: Record<string, string[]> = {};
+      let maxLen = 0;
+      for (const col of cols) {
+        const elements = document.querySelectorAll(col.selector);
+        const values: string[] = [];
+        elements.forEach(el => {
+          values.push(extractValue(el, col));
+        });
+        colArrays[col.name] = values;
+        if (values.length > maxLen) maxLen = values.length;
+      }
+
+      if (maxLen >= 2) {
+        for (let i = 0; i < maxLen; i++) {
+          const row: Record<string, string> = {};
+          let hasData = false;
+          for (const col of cols) {
+            row[col.name] = colArrays[col.name]?.[i] ?? '';
+            if (row[col.name]) hasData = true;
+          }
+          if (hasData) directRows.push(row);
+        }
+        if (directRows.length > 0) {
+          console.log('[ScrapeFlow Clone] 전략5 성공: 직접 추출,', directRows.length + '행');
+          return { columns: cols.map(c => c.name), rows: directRows, strategy: 'direct' };
+        }
+      }
+
+      console.warn('[ScrapeFlow Clone] 모든 전략 실패. container:', contSel, 'item:', itemSel);
+      return {
+        columns: cols.map(c => c.name),
+        rows: [] as Record<string, string>[],
+        strategy: 'none',
+        debug: {
+          containerFound: !!document.querySelector(contSel),
+          globalItemCount: document.querySelectorAll(itemSel).length,
+          firstColCount: document.querySelectorAll(cols[0]?.selector ?? '').length,
+        },
+      };
+    },
+    args: [containerSelector, itemSelector, columns],
+  });
+
+  const extracted = result?.result as {
+    columns: string[];
+    rows: Record<string, string>[];
+    strategy: string;
+    debug?: { containerFound: boolean; globalItemCount: number; firstColCount: number };
+  } | undefined;
+
+  if (extracted?.debug) {
+    console.log('[ScrapeFlow Clone] 디버그 정보:', extracted.debug);
   }
 
   const tab = await chrome.tabs.get(tabId);

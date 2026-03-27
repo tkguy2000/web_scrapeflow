@@ -606,11 +606,18 @@ async function runCloneExtract(): Promise<void> {
       }, 300);
     } else {
       updateProgress('데이터를 찾지 못했습니다', 100);
-      updateProgressDetail('셀렉터를 확인해주세요');
+      updateProgressDetail(
+        `컨테이너: ${cloneAiResult.containerSelector}\n` +
+        `아이템: ${cloneAiResult.itemSelector}\n` +
+        '페이지가 동적 로딩(SPA)이면 스크롤 후 다시 시도해보세요.'
+      );
+      // 5초 후 프로그레스 숨김
+      setTimeout(() => hideProgress(), 5000);
     }
   } catch (err) {
     updateProgress('추출 실패', 100);
     updateProgressDetail(String(err));
+    setTimeout(() => hideProgress(), 5000);
   }
 }
 
