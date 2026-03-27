@@ -1,5 +1,6 @@
 // 범용 반복 패턴 감지 — 클래스명에 의존하지 않는 구조적 분석
 // "Sibling Signature Matching" 알고리즘으로 임의의 HTML 구조에서 반복 요소를 찾는다.
+// AI 없이 순수 DOM 분석만으로 필드를 자동 추론한다.
 
 import type { DetectedPatternInfo } from '../lib/types';
 
@@ -8,11 +9,17 @@ interface DetectedPattern {
   items: HTMLElement[];
   signature: string;
   score: number;
-  sampleHtml: string;
+}
+
+// 자동 추론된 컬럼 정보
+export interface InferredColumn {
+  name: string;
+  selector: string;
+  type: 'text' | 'link' | 'image' | 'number';
+  attribute?: string;
 }
 
 // 요소의 자식 구조 시그니처 계산
-// 예: <div> 안에 <h3>, <p>, <a> → "DIV:A,H3,P"
 function computeChildSignature(el: Element): string {
   const childTags = Array.from(el.children)
     .map((c) => c.tagName)
@@ -36,7 +43,6 @@ function buildSelector(el: HTMLElement): string {
       break;
     }
 
-    // 클래스 중 의미 있는 것 사용 (짧은 유틸 클래스 제외)
     const classes = Array.from(current.classList)
       .filter((c) => c.length > 2 && !/^(mt|mb|pt|pb|px|py|mx|my|w-|h-)\d/.test(c))
       .slice(0, 2);
@@ -44,7 +50,6 @@ function buildSelector(el: HTMLElement): string {
       sel += '.' + classes.map((c) => CSS.escape(c)).join('.');
     }
 
-    // 같은 태그+클래스를 가진 형제 중 몇 번째인지
     const parent = current.parentElement;
     if (parent && !current.id) {
       const siblings = Array.from(parent.children).filter(
@@ -63,78 +68,230 @@ function buildSelector(el: HTMLElement): string {
   return parts.join(' > ');
 }
 
-// 패턴 점수 계산 — 항목 수, 콘텐츠 풍부도, 깊이 고려
-function scorePattern(container: HTMLElement, items: HTMLElement[]): number {
-  // 항목 수 (3개부터 가치, 최대 50점)
-  const countScore = Math.min(items.length / 2, 25);
+// 요소에서 간단한 상대 셀렉터 생성 (아이템 기준)
+function buildRelativeSelector(el: Element, item: Element): string {
+  // 태그 + 클래스로 셀렉터 생성
+  let sel = el.tagName.toLowerCase();
+  const classes = Array.from(el.classList)
+    .filter((c) => c.length > 2)
+    .slice(0, 2);
+  if (classes.length > 0) {
+    sel += '.' + classes.map((c) => CSS.escape(c)).join('.');
+  }
 
-  // 콘텐츠 풍부도 — 아이템당 평균 자식 요소 수
+  // 아이템 내에서 유일한지 확인
+  const matches = item.querySelectorAll(sel);
+  if (matches.length === 1) return sel;
+
+  // 유일하지 않으면 부모 경로 추가
+  const parent = el.parentElement;
+  if (parent && parent !== item) {
+    let parentSel = parent.tagName.toLowerCase();
+    const pClasses = Array.from(parent.classList).filter((c) => c.length > 2).slice(0, 1);
+    if (pClasses.length > 0) parentSel += '.' + CSS.escape(pClasses[0]);
+    const combined = `${parentSel} > ${sel}`;
+    if (item.querySelectorAll(combined).length === 1) return combined;
+  }
+
+  // nth-of-type 사용
+  if (el.parentElement) {
+    const siblings = Array.from(el.parentElement.children).filter((s) => s.tagName === el.tagName);
+    if (siblings.length > 1) {
+      const idx = siblings.indexOf(el) + 1;
+      return `${sel}:nth-of-type(${idx})`;
+    }
+  }
+
+  return sel;
+}
+
+// 패턴 점수 계산
+function scorePattern(container: HTMLElement, items: HTMLElement[]): number {
+  const countScore = Math.min(items.length / 2, 25);
   const avgChildren =
     items.reduce((sum, item) => sum + item.querySelectorAll('*').length, 0) / items.length;
   const richnessScore = Math.min(avgChildren * 2, 25);
 
-  // 깊이 페널티 — DOM 트리 깊이가 깊을수록 점수 감소
   let depth = 0;
   let el: HTMLElement | null = container;
-  while (el && el !== document.body) {
-    depth++;
-    el = el.parentElement;
-  }
+  while (el && el !== document.body) { depth++; el = el.parentElement; }
   const depthPenalty = Math.max(0, (depth - 3) * 2);
 
-  // 텍스트 콘텐츠가 있는 아이템 비율
   const hasContent = items.filter((item) => (item.textContent ?? '').trim().length > 10).length;
   const contentRatio = (hasContent / items.length) * 10;
 
   return countScore + richnessScore + contentRatio - depthPenalty;
 }
 
-// 네비게이션/레이아웃 요소 내부인지 확인
 function isInsideNavOrLayout(el: HTMLElement): boolean {
   return !!el.closest('nav, header, footer, [role="navigation"], [role="banner"]');
 }
 
-// 메인: 모든 반복 패턴 감지
+// === 순수 DOM 기반 컬럼 자동 추론 ===
+
+// 요소 타입에 따른 컬럼 이름 + 타입 추론
+function inferColumnFromElement(el: Element, item: Element, existingNames: Set<string>): InferredColumn | null {
+  const tag = el.tagName.toLowerCase();
+
+  // 빈 요소 스킵
+  const text = (el.textContent ?? '').trim();
+  if (!text && tag !== 'img') return null;
+
+  // 보이지 않는 요소 스킵
+  if (el instanceof HTMLElement) {
+    const style = getComputedStyle(el);
+    if (style.display === 'none' || style.visibility === 'hidden') return null;
+  }
+
+  let name = '';
+  let type: InferredColumn['type'] = 'text';
+  let attribute: string | undefined;
+
+  // 태그별 추론
+  if (tag === 'img') {
+    name = 'Image';
+    type = 'image';
+    attribute = 'src';
+  } else if (tag === 'a') {
+    // 링크: 텍스트와 href 모두 추출 가치 있음
+    const href = el.getAttribute('href') ?? '';
+    if (href && !href.startsWith('#') && !href.startsWith('javascript')) {
+      name = 'Link';
+      type = 'link';
+      attribute = 'href';
+    } else {
+      return null;
+    }
+  } else if (/^h[1-6]$/.test(tag)) {
+    name = 'Title';
+    type = 'text';
+  } else if (tag === 'time') {
+    name = 'Date';
+    type = 'text';
+    attribute = 'datetime';
+  } else if (tag === 'p') {
+    name = text.length > 50 ? 'Description' : 'Text';
+    type = 'text';
+  } else if (tag === 'span' || tag === 'div' || tag === 'li') {
+    // 클래스명에서 힌트 추출
+    const cls = el.className.toLowerCase();
+    if (cls.includes('title') || cls.includes('name')) name = 'Title';
+    else if (cls.includes('desc')) name = 'Description';
+    else if (cls.includes('price')) { name = 'Price'; type = 'number'; }
+    else if (cls.includes('date') || cls.includes('time')) name = 'Date';
+    else if (cls.includes('author') || cls.includes('user')) name = 'Author';
+    else if (cls.includes('cat') || cls.includes('tag')) name = 'Category';
+    else if (cls.includes('score') || cls.includes('rating') || cls.includes('count')) { name = 'Score'; type = 'number'; }
+    else if (text.length <= 5 && /^[\d.,]+$/.test(text)) { name = 'Number'; type = 'number'; }
+    else if (text.length > 100) name = 'Description';
+    else name = 'Text';
+  } else if (tag === 'button') {
+    return null; // 버튼은 데이터가 아님
+  } else {
+    name = 'Text';
+  }
+
+  if (!name) return null;
+
+  // 중복 이름 방지
+  let finalName = name;
+  let counter = 1;
+  while (existingNames.has(finalName)) {
+    counter++;
+    finalName = `${name} ${counter}`;
+  }
+  existingNames.add(finalName);
+
+  const selector = buildRelativeSelector(el, item);
+
+  return { name: finalName, selector, type, attribute };
+}
+
+// 아이템 하나에서 모든 의미있는 컬럼 추론
+function inferColumnsFromItem(item: HTMLElement): InferredColumn[] {
+  const columns: InferredColumn[] = [];
+  const existingNames = new Set<string>();
+
+  // 직접 자식 먼저 분석 (깊은 중첩보다 직접 자식이 더 의미있음)
+  const directChildren = Array.from(item.children);
+
+  for (const child of directChildren) {
+    const col = inferColumnFromElement(child, item, existingNames);
+    if (col) columns.push(col);
+
+    // 링크 안의 텍스트도 별도 추출 (제목인 경우 많음)
+    if (child.tagName === 'A' && child.textContent?.trim()) {
+      const textCol: InferredColumn = {
+        name: existingNames.has('Title') ? 'Link Text' : 'Title',
+        selector: buildRelativeSelector(child, item),
+        type: 'text',
+      };
+      if (!existingNames.has(textCol.name)) {
+        existingNames.add(textCol.name);
+        columns.push(textCol);
+      }
+    }
+
+    // 자식의 자식도 분석 (1단계 깊이만)
+    const grandChildren = Array.from(child.children);
+    for (const gc of grandChildren) {
+      const gcCol = inferColumnFromElement(gc, item, existingNames);
+      if (gcCol) columns.push(gcCol);
+
+      // 링크 안의 텍스트
+      if (gc.tagName === 'A' && gc.textContent?.trim()) {
+        const linkTextName = existingNames.has('Title') ? 'Link Text' : 'Title';
+        if (!existingNames.has(linkTextName)) {
+          existingNames.add(linkTextName);
+          columns.push({
+            name: linkTextName,
+            selector: buildRelativeSelector(gc, item),
+            type: 'text',
+          });
+        }
+      }
+    }
+  }
+
+  // 컬럼이 없으면 전체 텍스트라도 추출
+  if (columns.length === 0) {
+    columns.push({ name: 'Content', selector: ':scope', type: 'text' });
+  }
+
+  return columns;
+}
+
+// === 메인 감지 함수 ===
+
 export function detectRepeatedPatterns(): DetectedPattern[] {
   const patterns: DetectedPattern[] = [];
-  const processed = new Set<HTMLElement>(); // 중복 방지
+  const processed = new Set<HTMLElement>();
 
-  // body부터 모든 요소 순회
   const allElements = document.body.querySelectorAll<HTMLElement>('*');
 
   for (const container of allElements) {
     const children = Array.from(container.children) as HTMLElement[];
-    if (children.length < 3) continue; // 최소 3개 자식
-    if (isInsideNavOrLayout(container)) continue; // 네비게이션 제외
+    if (children.length < 3) continue;
+    if (isInsideNavOrLayout(container)) continue;
     if (processed.has(container)) continue;
 
-    // 자식별 시그니처 계산
     const signatures = new Map<string, HTMLElement[]>();
     for (const child of children) {
-      // 자식 요소가 2개 미만이면 너무 단순 — 스킵
       if (child.children.length < 1) continue;
-
       const sig = computeChildSignature(child);
       if (!signatures.has(sig)) signatures.set(sig, []);
       signatures.get(sig)!.push(child);
     }
 
-    // 가장 많이 반복되는 시그니처 찾기
     for (const [sig, items] of signatures) {
       if (items.length < 3) continue;
       if (items.length / children.length < 0.7) continue;
 
-      // 중복 컨테이너 방지 — 이미 처리된 부모/자식 건너뛰기
       let skip = false;
       for (const existing of patterns) {
-        if (
-          existing.container.contains(container) ||
-          container.contains(existing.container)
-        ) {
-          // 더 높은 점수를 가진 것을 유지
+        if (existing.container.contains(container) || container.contains(existing.container)) {
           const newScore = scorePattern(container, items);
           if (newScore > existing.score) {
-            // 기존 것을 제거하고 새 것으로 대체
             const idx = patterns.indexOf(existing);
             patterns.splice(idx, 1);
           } else {
@@ -146,95 +303,86 @@ export function detectRepeatedPatterns(): DetectedPattern[] {
       if (skip) continue;
 
       const score = scorePattern(container, items);
-      // 샘플 HTML: 첫 2개 아이템 (AI 분석용, 4000자 제한)
-      const sampleHtml = items
-        .slice(0, 2)
-        .map((item) => item.outerHTML)
-        .join('\n')
-        .slice(0, 4000);
-
-      patterns.push({ container, items, signature: sig, score, sampleHtml });
+      patterns.push({ container, items, signature: sig, score });
       processed.add(container);
     }
   }
 
-  // 점수 순 정렬
   patterns.sort((a, b) => b.score - a.score);
   return patterns;
 }
 
-// 직렬화 가능한 형태로 변환 (SW 전달용)
-export function detectPatternsSerializable(): DetectedPatternInfo[] {
-  return detectRepeatedPatterns().map((p) => ({
-    containerSelector: buildSelector(p.container),
-    itemCount: p.items.length,
-    signature: p.signature,
-    score: p.score,
-    sampleHtml: p.sampleHtml,
-  }));
+// 직렬화 가능한 형태 + 자동 추론 컬럼 포함
+export interface DetectedPatternWithColumns extends DetectedPatternInfo {
+  columns: InferredColumn[];
 }
 
-// AI 셀렉터로 데이터 추출 (Content Script에서 실행)
-export function extractWithCloneSelectors(
-  containerSelector: string,
-  itemSelector: string,
-  columns: { name: string; selector: string; type: string; attribute?: string }[]
-): { columns: string[]; rows: Record<string, string>[] } {
-  const container = document.querySelector(containerSelector);
-  if (!container) return { columns: columns.map((c) => c.name), rows: [] };
+export function detectPatternsWithColumns(): DetectedPatternWithColumns[] {
+  return detectRepeatedPatterns().map((p) => {
+    // 첫 번째 아이템에서 컬럼 구조 추론
+    const columns = inferColumnsFromItem(p.items[0]);
 
-  const items = container.querySelectorAll(itemSelector);
-  const colNames = columns.map((c) => c.name);
+    return {
+      containerSelector: buildSelector(p.container),
+      itemCount: p.items.length,
+      signature: p.signature,
+      score: p.score,
+      sampleHtml: '',
+      columns,
+    };
+  });
+}
+
+// 기존 호환용
+export function detectPatternsSerializable(): DetectedPatternInfo[] {
+  return detectPatternsWithColumns();
+}
+
+// DOM 기반 직접 추출 — AI 없이 감지된 패턴에서 바로 데이터 추출
+export function extractFromPattern(
+  patternIndex: number = 0
+): { columns: string[]; rows: Record<string, string>[]; patternInfo: string } | null {
+  const patterns = detectRepeatedPatterns();
+  if (patternIndex >= patterns.length) return null;
+
+  const pattern = patterns[patternIndex];
+  const columns = inferColumnsFromItem(pattern.items[0]);
+
   const rows: Record<string, string>[] = [];
 
-  items.forEach((item) => {
+  for (const item of pattern.items) {
     const row: Record<string, string> = {};
+    let hasData = false;
+
     for (const col of columns) {
       const el = item.querySelector(col.selector);
-      if (!el) {
-        row[col.name] = '';
-        continue;
-      }
+      if (!el) { row[col.name] = ''; continue; }
 
-      // attribute가 지정되면 해당 속성값 추출
       if (col.attribute) {
-        row[col.name] = el.getAttribute(col.attribute) ?? '';
-        // 상대 URL → 절대 URL 변환
-        if (
-          (col.type === 'link' || col.type === 'image' || col.type === 'file') &&
-          row[col.name]
-        ) {
-          try {
-            row[col.name] = new URL(row[col.name], window.location.href).href;
-          } catch {
-            // URL 변환 실패 시 원본 유지
-          }
+        let val = el.getAttribute(col.attribute) ?? '';
+        if ((col.type === 'link' || col.type === 'image') && val) {
+          try { val = new URL(val, window.location.href).href; } catch { /* 원본 유지 */ }
         }
-        continue;
+        row[col.name] = val;
+      } else if (col.type === 'link') {
+        row[col.name] = (el as HTMLAnchorElement).href ?? '';
+      } else if (col.type === 'image') {
+        row[col.name] = (el as HTMLImageElement).src || el.getAttribute('data-src') || '';
+      } else if (col.type === 'number') {
+        row[col.name] = (el.textContent ?? '').replace(/[^0-9.,\-]/g, '').trim();
+      } else {
+        row[col.name] = (el.textContent ?? '').trim();
       }
 
-      switch (col.type) {
-        case 'link':
-          row[col.name] = (el as HTMLAnchorElement).href ?? '';
-          break;
-        case 'image':
-          row[col.name] =
-            (el as HTMLImageElement).src ||
-            el.getAttribute('data-src') ||
-            '';
-          break;
-        case 'file':
-          row[col.name] = (el as HTMLAnchorElement).href ?? '';
-          break;
-        case 'number':
-          row[col.name] = (el.textContent ?? '').replace(/[^0-9.,\-]/g, '').trim();
-          break;
-        default:
-          row[col.name] = (el.textContent ?? '').trim();
-      }
+      if (row[col.name]) hasData = true;
     }
-    rows.push(row);
-  });
 
-  return { columns: colNames, rows };
+    if (hasData) rows.push(row);
+  }
+
+  return {
+    columns: columns.map((c) => c.name),
+    rows,
+    patternInfo: `${pattern.items.length}개 항목 (${pattern.signature})`,
+  };
 }

@@ -1,6 +1,6 @@
 import { MessageType } from '../lib/types';
 import type { PageInfo, ScrapeResult, ScrapeRow, Message, DetectedPatternInfo } from '../lib/types';
-import { detectRepeatedPatterns, detectPatternsSerializable, extractWithCloneSelectors } from './pattern-detector';
+import { detectRepeatedPatterns, detectPatternsWithColumns, extractFromPattern } from './pattern-detector';
 
 // === 감지 ===
 
@@ -380,30 +380,25 @@ chrome.runtime.onMessage.addListener(
         }
         break;
 
-      // 사이트 클론: 반복 패턴 감지
+      // 사이트 클론: 반복 패턴 감지 + 자동 컬럼 추론 (AI 불필요)
       case MessageType.CLONE_DETECT_PATTERNS:
         try {
-          const patterns = detectPatternsSerializable();
+          const patterns = detectPatternsWithColumns();
           sendResponse({ patterns });
         } catch (err) {
           sendResponse({ error: String(err) });
         }
         break;
 
-      // 사이트 클론: AI 셀렉터로 데이터 추출
+      // 사이트 클론: DOM 기반 직접 추출
       case MessageType.CLONE_EXTRACT_DATA:
         try {
-          const payload = message.payload as {
-            containerSelector: string;
-            itemSelector: string;
-            columns: { name: string; selector: string; type: string; attribute?: string }[];
-          };
-          const extracted = extractWithCloneSelectors(
-            payload.containerSelector,
-            payload.itemSelector,
-            payload.columns
-          );
-          sendResponse(extracted);
+          const extracted = extractFromPattern(0);
+          if (extracted) {
+            sendResponse(extracted);
+          } else {
+            sendResponse({ columns: [], rows: [] });
+          }
         } catch (err) {
           sendResponse({ error: String(err) });
         }

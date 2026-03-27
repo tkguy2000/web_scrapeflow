@@ -1,7 +1,7 @@
 import { MessageType } from '../lib/types';
-import type { Message, ScrapeResult, DetectedPatternInfo, AICloneResult } from '../lib/types';
+import type { Message, ScrapeResult, DetectedPatternInfo } from '../lib/types';
 import { saveResult } from '../lib/storage';
-import { inferDataStructure, inferCloneStructure } from '../lib/ai';
+import { inferDataStructure } from '../lib/ai';
 
 // 메시지 라우팅
 chrome.runtime.onMessage.addListener(
@@ -32,7 +32,7 @@ async function handleMessage(message: Message): Promise<unknown> {
     case MessageType.CLONE_DETECT_PATTERNS:
       return handleCloneDetect(message.payload as { tabId: number });
 
-    // 사이트 클론: AI 셀렉터로 데이터 추출
+    // 사이트 클론: DOM 기반 데이터 추출
     case MessageType.CLONE_EXTRACT_DATA:
       return handleCloneExtract(message.payload as {
         tabId: number;
@@ -46,15 +46,14 @@ async function handleMessage(message: Message): Promise<unknown> {
   }
 }
 
-// 사이트 클론: 패턴 감지 → AI 추론
+// 사이트 클론: 순수 DOM 기반 패턴 감지 + 자동 컬럼 추론 (AI 불필요)
 async function handleCloneDetect(opts: { tabId: number }): Promise<{
   patterns: DetectedPatternInfo[];
-  aiResult?: AICloneResult;
   error?: string;
 }> {
   const { tabId } = opts;
 
-  // Content Script에 직접 메시지를 보내서 패턴 감지
+  // Content Script의 detectPatternsWithColumns 호출
   let patterns: DetectedPatternInfo[] = [];
   try {
     const response = await chrome.tabs.sendMessage(tabId, {
@@ -62,13 +61,37 @@ async function handleCloneDetect(opts: { tabId: number }): Promise<{
     });
     patterns = (response as { patterns: DetectedPatternInfo[] })?.patterns ?? [];
   } catch {
-    // Content Script 미주입 시 executeScript로 폴백
+    // Content Script 미주입 시 executeScript로 직접 추출까지 수행
     const [result] = await chrome.scripting.executeScript({
       target: { tabId },
       func: () => {
-        // 인라인으로 간단한 패턴 감지 실행
+        // 인라인 패턴 감지 + 컬럼 추론
+        function computeSig(el: Element): string {
+          return el.tagName + ':' + Array.from(el.children).map(c => c.tagName).sort().join(',');
+        }
+
+        function inferType(el: Element): { name: string; type: string; attribute?: string } {
+          const tag = el.tagName.toLowerCase();
+          if (tag === 'img') return { name: 'Image', type: 'image', attribute: 'src' };
+          if (tag === 'a') return { name: 'Link', type: 'link', attribute: 'href' };
+          if (/^h[1-6]$/.test(tag)) return { name: 'Title', type: 'text' };
+          if (tag === 'time') return { name: 'Date', type: 'text', attribute: 'datetime' };
+          if (tag === 'p') return { name: (el.textContent ?? '').length > 50 ? 'Description' : 'Text', type: 'text' };
+          const cls = el.className?.toLowerCase() ?? '';
+          if (cls.includes('title') || cls.includes('name')) return { name: 'Title', type: 'text' };
+          if (cls.includes('desc')) return { name: 'Description', type: 'text' };
+          if (cls.includes('price')) return { name: 'Price', type: 'number' };
+          if (cls.includes('date')) return { name: 'Date', type: 'text' };
+          if (cls.includes('author')) return { name: 'Author', type: 'text' };
+          return { name: 'Text', type: 'text' };
+        }
+
         const allElements = document.body.querySelectorAll<HTMLElement>('*');
-        const found: Array<{ containerSelector: string; itemCount: number; signature: string; score: number; sampleHtml: string }> = [];
+        const found: Array<{
+          containerSelector: string; itemCount: number; signature: string;
+          score: number; sampleHtml: string;
+          columns: Array<{ name: string; selector: string; type: string; attribute?: string }>;
+        }> = [];
 
         for (const container of allElements) {
           const children = Array.from(container.children) as HTMLElement[];
@@ -78,22 +101,65 @@ async function handleCloneDetect(opts: { tabId: number }): Promise<{
           const sigs = new Map<string, HTMLElement[]>();
           for (const child of children) {
             if (child.children.length < 1) continue;
-            const sig = child.tagName + ':' + Array.from(child.children).map(c => c.tagName).sort().join(',');
+            const sig = computeSig(child);
             if (!sigs.has(sig)) sigs.set(sig, []);
             sigs.get(sig)!.push(child);
           }
 
           for (const [sig, items] of sigs) {
             if (items.length < 3 || items.length / children.length < 0.7) continue;
-            const sample = items.slice(0, 2).map(i => i.outerHTML).join('\n').slice(0, 4000);
-            // 간단한 셀렉터 생성
-            let sel = container.tagName.toLowerCase();
-            if (container.id) sel = '#' + container.id;
+
+            // 첫 아이템에서 컬럼 추론
+            const firstItem = items[0];
+            const columns: Array<{ name: string; selector: string; type: string; attribute?: string }> = [];
+            const usedNames = new Set<string>();
+
+            const walk = (el: Element) => {
+              for (const child of Array.from(el.children)) {
+                const info = inferType(child);
+                let finalName = info.name;
+                let c = 1;
+                while (usedNames.has(finalName)) { c++; finalName = `${info.name} ${c}`; }
+                usedNames.add(finalName);
+
+                let sel = child.tagName.toLowerCase();
+                const cls = Array.from(child.classList).filter(c2 => c2.length > 2).slice(0, 2);
+                if (cls.length > 0) sel += '.' + cls.join('.');
+                columns.push({ name: finalName, selector: sel, type: info.type, attribute: info.attribute });
+
+                // 1단계 깊이까지만
+                if (el === firstItem) {
+                  for (const gc of Array.from(child.children)) {
+                    const gcInfo = inferType(gc);
+                    let gcName = gcInfo.name;
+                    let gc2 = 1;
+                    while (usedNames.has(gcName)) { gc2++; gcName = `${gcInfo.name} ${gc2}`; }
+                    usedNames.add(gcName);
+                    let gcSel = gc.tagName.toLowerCase();
+                    const gcCls = Array.from(gc.classList).filter(c3 => c3.length > 2).slice(0, 2);
+                    if (gcCls.length > 0) gcSel += '.' + gcCls.join('.');
+                    columns.push({ name: gcName, selector: `${sel} > ${gcSel}`, type: gcInfo.type, attribute: gcInfo.attribute });
+                  }
+                }
+              }
+            };
+            walk(firstItem);
+
+            let contSel = container.tagName.toLowerCase();
+            if (container.id) contSel = '#' + container.id;
             else if (container.className) {
-              const cls = container.className.split(/\s+/).filter(c => c.length > 2).slice(0, 2);
-              if (cls.length > 0) sel += '.' + cls.join('.');
+              const cls = container.className.split(/\s+/).filter(c2 => c2.length > 2).slice(0, 2);
+              if (cls.length > 0) contSel += '.' + cls.join('.');
             }
-            found.push({ containerSelector: sel, itemCount: items.length, signature: sig, score: items.length * 2, sampleHtml: sample });
+
+            found.push({
+              containerSelector: contSel,
+              itemCount: items.length,
+              signature: sig,
+              score: items.length * 2 + columns.length,
+              sampleHtml: '',
+              columns,
+            });
             break;
           }
         }
@@ -109,18 +175,7 @@ async function handleCloneDetect(opts: { tabId: number }): Promise<{
     return { patterns: [], error: '반복 패턴을 찾을 수 없습니다' };
   }
 
-  // 2. 가장 점수가 높은 패턴으로 AI 추론
-  const bestPattern = patterns[0];
-  const tab = await chrome.tabs.get(tabId);
-  const pageUrl = tab.url ?? '';
-
-  try {
-    const aiResult = await inferCloneStructure(bestPattern.sampleHtml, pageUrl);
-    return { patterns, aiResult };
-  } catch (err) {
-    console.warn('[ScrapeFlow] AI 클론 추론 실패:', err);
-    return { patterns, error: `AI 추론 실패: ${String(err)}` };
-  }
+  return { patterns };
 }
 
 // 사이트 클론: AI 셀렉터로 데이터 추출 — 다단계 폴백
