@@ -4,7 +4,7 @@ import { saveResult } from '../lib/storage';
 import { inferDataStructure } from '../lib/ai';
 
 // 삭제 시 피드백 페이지 URL (GitHub Pages 등에 호스팅 후 실제 URL로 교체)
-const UNINSTALL_URL = 'https://YOUR_USERNAME.github.io/web_ScrapeFlow/uninstall.html';
+const UNINSTALL_URL = 'https://tkguy2000.github.io/web_scrapeflow/uninstall.html';
 
 chrome.runtime.onInstalled.addListener(() => {
   chrome.runtime.setUninstallURL(UNINSTALL_URL);
