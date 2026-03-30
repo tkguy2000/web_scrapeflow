@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>ScrapeFlow Screenshot Generator</title>
+  <style>
+    body { background: #111; color: #fff; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; padding: 40px; text-align: center; }
+    h2 { margin-bottom: 8px; }
+    p { color: #999; margin-bottom: 32px; }
+    .screenshots { display: flex; flex-direction: column; gap: 32px; align-items: center; }
+    .shot { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+    .shot canvas { border: 1px solid #333; border-radius: 8px; cursor: pointer; }
+    .shot a { color: #8b5cf6; text-decoration: none; font-size: 14px; }
+    .label { color: #888; font-size: 13px; }
+  </style>
+</head>
+<body>
+  <h2>ScrapeFlow Screenshot Generator</h2>
+  <p>Click each image to download (1280x800)</p>
+  <div class="screenshots" id="shots"></div>
+
+  <script>
+    const W = 1280, H = 800;
+
+    function drawRoundRect(ctx, x, y, w, h, r) {
+      ctx.beginPath();
+      ctx.moveTo(x + r, y);
+      ctx.lineTo(x + w - r, y);
+      ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+      ctx.lineTo(x + w, y + h - r);
+      ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+      ctx.lineTo(x + r, y + h);
+      ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+      ctx.lineTo(x, y + r);
+      ctx.quadraticCurveTo(x, y, x + r, y);
+      ctx.closePath();
+    }
+
+    function drawLogo(ctx, x, y, size) {
+      const r = size * 0.22;
+      const grad = ctx.createLinearGradient(x, y, x + size, y + size);
+      grad.addColorStop(0, '#6c5ce7');
+      grad.addColorStop(1, '#8b5cf6');
+      drawRoundRect(ctx, x, y, size, size, r);
+      ctx.fillStyle = grad;
+      ctx.fill();
+      ctx.fillStyle = '#fff';
+      ctx.font = `bold ${size * 0.6}px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('S', x + size / 2, y + size / 2 + size * 0.03);
+    }
+
+    function drawBadge(ctx, x, y, text, bg, fg) {
+      ctx.font = 'bold 12px -apple-system, sans-serif';
+      const w = ctx.measureText(text).width + 12;
+      drawRoundRect(ctx, x, y, w, 22, 4);
+      ctx.fillStyle = bg;
+      ctx.fill();
+      ctx.fillStyle = fg;
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(text, x + 6, y + 11);
+    }
+
+    // === Screenshot 1: Hero / Overview ===
+    function drawHero(ctx) {
+      // 배경 그라디언트
+      const bg = ctx.createLinearGradient(0, 0, W, H);
+      bg.addColorStop(0, '#0f0f1a');
+      bg.addColorStop(0.5, '#1a1035');
+      bg.addColorStop(1, '#0f0f1a');
+      ctx.fillStyle = bg;
+      ctx.fillRect(0, 0, W, H);
+
+      // 장식 원
+      ctx.globalAlpha = 0.06;
+      ctx.beginPath(); ctx.arc(200, 650, 300, 0, Math.PI * 2); ctx.fillStyle = '#8b5cf6'; ctx.fill();
+      ctx.beginPath(); ctx.arc(1100, 200, 250, 0, Math.PI * 2); ctx.fill();
+      ctx.globalAlpha = 1;
+
+      // 로고
+      drawLogo(ctx, W / 2 - 30, 140, 60);
+      ctx.fillStyle = '#fff';
+      ctx.font = 'bold 48px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('ScrapeFlow', W / 2, 260);
+
+      drawBadge(ctx, W / 2 - 15, 275, 'AI', '#6c5ce7', '#fff');
+
+      // 서브타이틀
+      ctx.fillStyle = '#9898b0';
+      ctx.font = '20px -apple-system, sans-serif';
+      ctx.fillText('AI-Powered Web Scraper for Chrome', W / 2, 325);
+
+      // 기능 카드들
+      const features = [
+        { icon: '📊', title: 'Extract Data', desc: 'Auto-detect tables, lists,\nand structured data' },
+        { icon: '📸', title: 'Full Page Capture', desc: 'Capture entire pages\nas high-quality images' },
+        { icon: '🌐', title: 'Site Clone', desc: 'Clone sites with HTML,\nCSS and content' },
+        { icon: '📄', title: 'Multi-Format Export', desc: 'Export to JSON, CSV,\nor clipboard' },
+      ];
+
+      const cardW = 240, cardH = 160, gap = 30;
+      const startX = (W - (cardW * 4 + gap * 3)) / 2;
+      const cardY = 400;
+
+      features.forEach((f, i) => {
+        const x = startX + i * (cardW + gap);
+        drawRoundRect(ctx, x, cardY, cardW, cardH, 12);
+        ctx.fillStyle = 'rgba(37, 37, 61, 0.8)';
+        ctx.fill();
+        ctx.strokeStyle = '#3a3a5c';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+
+        ctx.font = '36px -apple-system, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillStyle = '#fff';
+        ctx.fillText(f.icon, x + cardW / 2, cardY + 50);
+
+        ctx.font = 'bold 16px -apple-system, sans-serif';
+        ctx.fillStyle = '#e8e8f0';
+        ctx.fillText(f.title, x + cardW / 2, cardY + 85);
+
+        ctx.font = '13px -apple-system, sans-serif';
+        ctx.fillStyle = '#9898b0';
+        const lines = f.desc.split('\n');
+        lines.forEach((line, li) => {
+          ctx.fillText(line, x + cardW / 2, cardY + 110 + li * 18);
+        });
+      });
+
+      // 하단 CTA
+      drawRoundRect(ctx, W / 2 - 120, 620, 240, 48, 10);
+      ctx.fillStyle = '#6c5ce7';
+      ctx.fill();
+      ctx.fillStyle = '#fff';
+      ctx.font = 'bold 16px -apple-system, sans-serif';
+      ctx.fillText('One-Click Analysis', W / 2, 645);
+
+      ctx.fillStyle = '#6b6b88';
+      ctx.font = '13px -apple-system, sans-serif';
+      ctx.fillText('Works on any website — no configuration needed', W / 2, 710);
+    }
+
+    // === Screenshot 2: Popup UI ===
+    function drawPopup(ctx) {
+      // 배경
+      ctx.fillStyle = '#0f0f1a';
+      ctx.fillRect(0, 0, W, H);
+
+      // 웹사이트 배경 모킹
+      drawRoundRect(ctx, 60, 40, W - 120, H - 80, 12);
+      ctx.fillStyle = '#1a1a2e';
+      ctx.fill();
+      ctx.strokeStyle = '#2a2a45';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+
+      // 가짜 웹사이트 콘텐츠
+      ctx.fillStyle = '#25253d';
+      drawRoundRect(ctx, 100, 80, 500, 30, 6); ctx.fill();
+      for (let i = 0; i < 8; i++) {
+        ctx.fillStyle = i % 2 === 0 ? '#25253d' : '#222240';
+        drawRoundRect(ctx, 100, 140 + i * 50, W - 580, 40, 4); ctx.fill();
+      }
+
+      // Popup 윈도우
+      const px = W - 430, py = 60, pw = 380, ph = 440;
+      // 그림자
+      ctx.shadowColor = 'rgba(0,0,0,0.5)';
+      ctx.shadowBlur = 30;
+      ctx.shadowOffsetY = 10;
+      drawRoundRect(ctx, px, py, pw, ph, 12);
+      ctx.fillStyle = '#1a1a2e';
+      ctx.fill();
+      ctx.shadowColor = 'transparent';
+
+      ctx.strokeStyle = '#3a3a5c';
+      ctx.stroke();
+
+      // Popup 헤더
+      const hx = px + 20, hy = py + 20;
+      drawLogo(ctx, hx, hy, 28);
+      ctx.fillStyle = '#e8e8f0';
+      ctx.font = 'bold 16px -apple-system, sans-serif';
+      ctx.textAlign = 'left';
+      ctx.fillText('ScrapeFlow', hx + 36, hy + 18);
+      drawBadge(ctx, hx + 130, hy + 6, 'AI', '#6c5ce7', '#fff');
+
+      // 테마 토글
+      drawRoundRect(ctx, px + pw - 110, hy + 2, 90, 24, 6);
+      ctx.fillStyle = '#25253d';
+      ctx.fill();
+      ctx.strokeStyle = '#3a3a5c';
+      ctx.stroke();
+      ctx.font = '12px -apple-system, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillStyle = '#fff';
+      drawRoundRect(ctx, px + pw - 108, hy + 4, 28, 20, 4);
+      ctx.fillStyle = '#6c5ce7'; ctx.fill();
+      ctx.fillStyle = '#fff';
+      ctx.fillText('🌙', px + pw - 94, hy + 16);
+      ctx.fillStyle = '#6b6b88';
+      ctx.fillText('☀️', px + pw - 64, hy + 16);
+      ctx.fillText('💻', px + pw - 34, hy + 16);
+
+      // 페이지 정보
+      const iy = hy + 50;
+      drawRoundRect(ctx, hx, iy, pw - 40, 80, 8);
+      ctx.fillStyle = '#25253d';
+      ctx.fill();
+      ctx.textAlign = 'left';
+      ctx.fillStyle = '#e8e8f0';
+      ctx.font = 'bold 13px -apple-system, sans-serif';
+      ctx.fillText('Example Store — Products', hx + 12, iy + 25);
+      ctx.fillStyle = '#9898b0';
+      ctx.font = '11px -apple-system, sans-serif';
+      ctx.fillText('https://example.com/products', hx + 12, iy + 45);
+      ctx.fillStyle = '#6c5ce7';
+      ctx.font = 'bold 12px -apple-system, sans-serif';
+      ctx.fillText('Tables 3', hx + 12, iy + 68);
+      ctx.fillText('Lists 2', hx + 90, iy + 68);
+
+      // 버튼들
+      const by = iy + 100;
+      // Extract Data 버튼
+      drawRoundRect(ctx, hx, by, (pw - 50) / 2, 44, 8);
+      ctx.fillStyle = '#6c5ce7';
+      ctx.fill();
+      ctx.fillStyle = '#fff';
+      ctx.font = 'bold 13px -apple-system, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('📊 Extract Data', hx + (pw - 50) / 4, by + 26);
+
+      // Capture 버튼
+      const bx2 = hx + (pw - 50) / 2 + 10;
+      drawRoundRect(ctx, bx2, by, (pw - 50) / 2, 44, 8);
+      ctx.fillStyle = 'rgba(139, 92, 246, 0.15)';
+      ctx.fill();
+      ctx.fillStyle = '#8b5cf6';
+      ctx.fillText('📸 Full Page Capture', bx2 + (pw - 50) / 4, by + 26);
+
+      // Settings
+      const sy = by + 70;
+      drawRoundRect(ctx, hx, sy, pw - 40, 90, 8);
+      ctx.fillStyle = '#25253d';
+      ctx.fill();
+      ctx.textAlign = 'left';
+      ctx.fillStyle = '#e8e8f0';
+      ctx.font = 'bold 14px -apple-system, sans-serif';
+      ctx.fillText('Settings', hx + 12, sy + 25);
+      ctx.fillStyle = '#9898b0';
+      ctx.font = '12px -apple-system, sans-serif';
+      ctx.fillText('Claude API Key', hx + 12, sy + 48);
+      drawRoundRect(ctx, hx + 12, sy + 56, pw - 100, 24, 6);
+      ctx.fillStyle = '#1a1a2e';
+      ctx.fill();
+      ctx.strokeStyle = '#3a3a5c';
+      ctx.stroke();
+      ctx.fillStyle = '#6b6b88';
+      ctx.font = '11px -apple-system, sans-serif';
+      ctx.fillText('sk-ant-•••••••', hx + 20, sy + 72);
+
+      drawRoundRect(ctx, px + pw - 68, sy + 56, 48, 24, 6);
+      ctx.fillStyle = '#6c5ce7';
+      ctx.fill();
+      ctx.fillStyle = '#fff';
+      ctx.font = 'bold 11px -apple-system, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('Save', px + pw - 44, sy + 72);
+
+      // 푸터
+      ctx.textAlign = 'left';
+      ctx.fillStyle = '#6b6b88';
+      ctx.font = '11px -apple-system, sans-serif';
+      ctx.fillText('v0.1.0', px + pw - 60, py + ph - 15);
+
+      // 라벨
+      ctx.textAlign = 'center';
+      ctx.fillStyle = '#9898b0';
+      ctx.font = '16px -apple-system, sans-serif';
+      ctx.fillText('Clean, intuitive popup interface', W / 2, H - 30);
+    }
+
+    // === Screenshot 3: Side Panel / Results ===
+    function drawSidePanel(ctx) {
+      ctx.fillStyle = '#0f0f1a';
+      ctx.fillRect(0, 0, W, H);
+
+      // 왼쪽: 웹사이트 모킹
+      const webW = W - 420;
+      drawRoundRect(ctx, 30, 30, webW - 30, H - 60, 8);
+      ctx.fillStyle = '#1e1e32';
+      ctx.fill();
+
+      // 가짜 테이블 데이터
+      ctx.fillStyle = '#25253d';
+      drawRoundRect(ctx, 60, 70, webW - 90, 36, 4);
+      ctx.fill();
+      ctx.fillStyle = '#9898b0';
+      ctx.font = 'bold 12px -apple-system, sans-serif';
+      ctx.textAlign = 'left';
+      const cols = ['Name', 'Price', 'Rating', 'Category', 'Stock'];
+      cols.forEach((c, i) => {
+        ctx.fillText(c, 80 + i * 150, 93);
+      });
+
+      for (let r = 0; r < 12; r++) {
+        const ry = 120 + r * 42;
+        ctx.fillStyle = r % 2 === 0 ? '#222240' : '#1e1e32';
+        drawRoundRect(ctx, 60, ry, webW - 90, 38, 2);
+        ctx.fill();
+
+        ctx.fillStyle = '#c8c8d8';
+        ctx.font = '12px -apple-system, sans-serif';
+        const fakeData = [
+          ['Product A', '$29.99', '4.5', 'Electronics', '142'],
+          ['Product B', '$49.99', '4.8', 'Software', '89'],
+          ['Product C', '$19.99', '4.2', 'Books', '256'],
+          ['Product D', '$99.99', '4.9', 'Premium', '34'],
+          ['Product E', '$14.99', '3.8', 'Gadgets', '512'],
+          ['Product F', '$39.99', '4.6', 'Tools', '78'],
+          ['Product G', '$24.99', '4.1', 'Games', '193'],
+          ['Product H', '$59.99', '4.7', 'Music', '67'],
+          ['Product I', '$34.99', '4.3', 'Art', '145'],
+          ['Product J', '$44.99', '4.4', 'Sports', '98'],
+          ['Product K', '$54.99', '4.0', 'Fashion', '210'],
+          ['Product L', '$64.99', '4.9', 'Health', '56'],
+        ];
+        fakeData[r].forEach((d, i) => {
+          ctx.fillText(d, 80 + i * 150, ry + 24);
+        });
+      }
+
+      // 하이라이트 효과
+      ctx.strokeStyle = 'rgba(139, 92, 246, 0.4)';
+      ctx.lineWidth = 2;
+      ctx.setLineDash([4, 4]);
+      drawRoundRect(ctx, 58, 118, webW - 86, 42 * 3 + 2, 4);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      // 오른쪽: Side Panel
+      const spx = webW + 10, spy = 30, spw = 380, sph = H - 60;
+      ctx.shadowColor = 'rgba(0,0,0,0.4)';
+      ctx.shadowBlur = 20;
+      ctx.shadowOffsetX = -5;
+      drawRoundRect(ctx, spx, spy, spw, sph, 8);
+      ctx.fillStyle = '#1a1a2e';
+      ctx.fill();
+      ctx.shadowColor = 'transparent';
+      ctx.strokeStyle = '#2a2a45';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+
+      // Side Panel 헤더
+      const shx = spx + 16, shy = spy + 16;
+      drawLogo(ctx, shx, shy, 22);
+      ctx.fillStyle = '#e8e8f0';
+      ctx.font = 'bold 14px -apple-system, sans-serif';
+      ctx.textAlign = 'left';
+      ctx.fillText('ScrapeFlow', shx + 30, shy + 15);
+      drawBadge(ctx, shx + 110, shy + 4, 'AI', '#6c5ce7', '#fff');
+
+      // 소스 바
+      const sby = shy + 40;
+      ctx.fillStyle = '#9898b0';
+      ctx.font = '11px -apple-system, sans-serif';
+      ctx.fillText('Source:', shx, sby);
+      ctx.fillStyle = '#e8e8f0';
+      ctx.fillText('Example Store — Products', shx + 48, sby);
+
+      // 결과 요약
+      const riy = sby + 28;
+      drawRoundRect(ctx, shx, riy, spw - 32, 30, 6);
+      ctx.fillStyle = '#22c55e';
+      ctx.globalAlpha = 0.1;
+      ctx.fill();
+      ctx.globalAlpha = 1;
+      ctx.fillStyle = '#22c55e';
+      ctx.font = 'bold 12px -apple-system, sans-serif';
+      ctx.fillText('✅ 12 rows × 5 columns extracted', shx + 10, riy + 20);
+
+      // Export Data
+      const edy = riy + 48;
+      ctx.fillStyle = '#e8e8f0';
+      ctx.font = 'bold 13px -apple-system, sans-serif';
+      ctx.fillText('Export Data', shx, edy);
+
+      const btnW = (spw - 44) / 3;
+      ['📄 JSON', '📊 CSV', '📋 Copy'].forEach((label, i) => {
+        const bx = shx + i * (btnW + 6);
+        drawRoundRect(ctx, bx, edy + 16, btnW, 40, 6);
+        ctx.fillStyle = '#25253d';
+        ctx.fill();
+        ctx.strokeStyle = '#3a3a5c';
+        ctx.stroke();
+        ctx.fillStyle = '#c8c8d8';
+        ctx.font = '12px -apple-system, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(label, bx + btnW / 2, edy + 40);
+      });
+
+      // Site Clone
+      const scy = edy + 76;
+      ctx.textAlign = 'left';
+      ctx.fillStyle = '#e8e8f0';
+      ctx.font = 'bold 13px -apple-system, sans-serif';
+      ctx.fillText('Site Clone', shx, scy);
+
+      const cloneW = (spw - 38) / 2;
+      [['🌐', 'HTML Clone'], ['📦', 'Site Package']].forEach(([icon, label], i) => {
+        const bx = shx + i * (cloneW + 6);
+        drawRoundRect(ctx, bx, scy + 16, cloneW, 40, 6);
+        ctx.fillStyle = i === 1 ? 'rgba(139, 92, 246, 0.15)' : '#25253d';
+        ctx.fill();
+        ctx.strokeStyle = i === 1 ? '#6c5ce7' : '#3a3a5c';
+        ctx.stroke();
+        ctx.fillStyle = i === 1 ? '#8b5cf6' : '#c8c8d8';
+        ctx.font = '12px -apple-system, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(`${icon} ${label}`, bx + cloneW / 2, scy + 40);
+      });
+
+      // 미니 테이블 결과
+      const tty = scy + 76;
+      ctx.textAlign = 'left';
+      ctx.fillStyle = '#9898b0';
+      ctx.font = '12px -apple-system, sans-serif';
+      ctx.fillText('▾ View Extracted Data (12 rows)', shx, tty);
+
+      const miniCols = ['Name', 'Price', 'Rating'];
+      ctx.fillStyle = '#25253d';
+      drawRoundRect(ctx, shx, tty + 10, spw - 32, 28, 4);
+      ctx.fill();
+      ctx.fillStyle = '#9898b0';
+      ctx.font = 'bold 10px -apple-system, sans-serif';
+      miniCols.forEach((c, i) => {
+        ctx.fillText(c, shx + 8 + i * 110, tty + 28);
+      });
+
+      const miniData = [
+        ['Product A', '$29.99', '4.5'],
+        ['Product B', '$49.99', '4.8'],
+        ['Product C', '$19.99', '4.2'],
+        ['Product D', '$99.99', '4.9'],
+        ['Product E', '$14.99', '3.8'],
+      ];
+      miniData.forEach((row, r) => {
+        const my = tty + 40 + r * 26;
+        ctx.fillStyle = r % 2 === 0 ? '#1e1e32' : '#222240';
+        drawRoundRect(ctx, shx, my, spw - 32, 24, 2);
+        ctx.fill();
+        ctx.fillStyle = '#c8c8d8';
+        ctx.font = '10px -apple-system, sans-serif';
+        row.forEach((d, i) => {
+          ctx.fillText(d, shx + 8 + i * 110, my + 16);
+        });
+      });
+
+      // 페이지네이션
+      const pgy = tty + 40 + 5 * 26 + 10;
+      ctx.fillStyle = '#6b6b88';
+      ctx.textAlign = 'center';
+      ctx.font = '11px -apple-system, sans-serif';
+      ctx.fillText('< 1 / 1 >', shx + (spw - 32) / 2, pgy);
+    }
+
+    // 생성 및 렌더링
+    const screenshots = [
+      { name: 'screenshot-1-hero.png', label: 'Screenshot 1: Feature Overview (1280x800)', draw: drawHero },
+      { name: 'screenshot-2-popup.png', label: 'Screenshot 2: Popup Interface (1280x800)', draw: drawPopup },
+      { name: 'screenshot-3-sidepanel.png', label: 'Screenshot 3: Side Panel Results (1280x800)', draw: drawSidePanel },
+    ];
+
+    const container = document.getElementById('shots');
+    screenshots.forEach(s => {
+      const canvas = document.createElement('canvas');
+      canvas.width = W;
+      canvas.height = H;
+      const ctx = canvas.getContext('2d');
+      s.draw(ctx);
+
+      const wrapper = document.createElement('div');
+      wrapper.className = 'shot';
+
+      const link = document.createElement('a');
+      link.href = canvas.toDataURL('image/png');
+      link.download = s.name;
+
+      const preview = document.createElement('img');
+      preview.src = canvas.toDataURL('image/png');
+      preview.style.width = '640px';
+      preview.style.height = '400px';
+
+      link.appendChild(preview);
+      wrapper.appendChild(link);
+
+      const label = document.createElement('div');
+      label.className = 'label';
+      label.textContent = s.label;
+      wrapper.appendChild(label);
+
+      container.appendChild(wrapper);
+    });
+  </script>
+</body>
+</html>

@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ko">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <link rel="stylesheet" href="sidepanel.css">
@@ -11,248 +11,80 @@
     <header class="header">
       <h1 class="logo">ScrapeFlow</h1>
       <span class="badge">AI</span>
+      <button class="lang-toggle" id="lang-toggle" title="Language">EN/한</button>
     </header>
 
-    <!-- 스텝 인디케이터 -->
-    <div class="steps" id="step-indicator">
-      <div class="step-bar">
-        <div class="step-fill" id="step-fill"></div>
-      </div>
-      <div class="step-label" id="step-label">1/3</div>
-    </div>
-
-    <!-- Step 1: 데이터 소스 선택 -->
-    <div id="step1" class="step-content">
-      <h2 class="step-title">데이터 소스 선택</h2>
-      <div class="option-list">
-        <button class="option-card selected" data-source="current" id="opt-current">
-          <span class="option-icon">🌐</span>
-          <div class="option-info">
-            <div class="option-label">현재 페이지</div>
-            <div class="option-desc" id="current-page-info">로딩 중...</div>
-          </div>
-        </button>
-        <button class="option-card" data-source="links" id="opt-links">
-          <span class="option-icon">🔗</span>
-          <div class="option-info">
-            <div class="option-label">링크</div>
-            <div class="option-desc">추출할 URL 목록을 붙여넣어 일괄 처리하세요.</div>
-          </div>
-        </button>
-        <!-- 링크 URL 입력 영역 -->
-        <div id="links-input-area" class="links-input-area hidden">
-          <textarea id="links-textarea" class="links-textarea"
-            placeholder="URL을 한 줄에 하나씩 입력하세요&#10;https://example.com/page1&#10;https://example.com/page2"
-            rows="6"></textarea>
-          <div class="links-count" id="links-count">0개 URL</div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Step 2: 페이지 네비게이션 설정 -->
-    <div id="step2" class="step-content hidden">
-      <h2 class="step-title">페이지 네비게이션 설정</h2>
-      <div class="option-list">
-        <button class="option-card ai-option selected" data-nav="auto" id="opt-auto">
-          <span class="option-icon">✨</span>
-          <div class="option-info">
-            <div class="option-label">AI 자동 감지</div>
-          </div>
-        </button>
-        <div class="divider-text">또는</div>
-        <button class="option-card" data-nav="none" id="opt-none">
-          <span class="option-icon">📄</span>
-          <div class="option-info">
-            <div class="option-label">페이지 구분 없음</div>
-            <div class="option-desc">현재 페이지의 내용만 스크래핑합니다.</div>
-          </div>
-        </button>
-        <button class="option-card" data-nav="click" id="opt-click">
-          <span class="option-icon">🔗</span>
-          <div class="option-info">
-            <div class="option-label">클릭 페이지 이동</div>
-            <div class="option-desc">페이지 링크를 클릭하여 내용을 스크래핑합니다.</div>
-          </div>
-        </button>
-        <button class="option-card" data-nav="scroll" id="opt-scroll">
-          <span class="option-icon">⏳</span>
-          <div class="option-info">
-            <div class="option-label">무한 스크롤</div>
-            <div class="option-desc">아래로 스크롤하여 항목을 불러오며 스크래핑합니다.</div>
-          </div>
-        </button>
-      </div>
-    </div>
-
-    <!-- Step 3: 스크래이퍼 템플릿 선택 -->
-    <div id="step3" class="step-content hidden">
-      <h2 class="step-title">스크래이퍼 템플릿 선택</h2>
-
-      <button class="option-card new-template" id="btn-new-template">
-        <span class="option-icon">➕</span>
-        <div class="option-info">
-          <div class="option-label">새 스크래이퍼 템플릿</div>
-        </div>
-      </button>
-
-      <!-- 템플릿 에디터 -->
-      <div id="template-editor" class="template-editor hidden">
-        <input type="text" id="template-name" class="template-name-input" value="Scraper 1" />
-
-        <div class="field-actions">
-          <button id="btn-ai-fields" class="btn btn-ai">
-            <span>✨</span> AI 추천 필드
-          </button>
-          <div class="divider-text">또는</div>
-          <button id="btn-manual-fields" class="btn btn-outline">
-            <span>⌨️</span> 직접 입력
-          </button>
-        </div>
-
-        <!-- 필드 목록 -->
-        <div id="field-list" class="field-list"></div>
-
-        <button id="btn-add-field" class="btn btn-ghost btn-sm hidden">+ 필드 추가</button>
-
-        <!-- 서브페이지 옵션 -->
-        <button id="btn-subpage" class="btn btn-outline btn-sm hidden">
-          <span>🔗</span> 하위 페이지 수집
-        </button>
-      </div>
-
-      <!-- 저장된 템플릿 목록 -->
-      <div id="template-list" class="template-list"></div>
-    </div>
-
-    <!-- 결과 화면 -->
-    <div id="result-view" class="step-content hidden">
-      <div class="result-header-bar">
-        <h2 class="step-title">결과 테이블</h2>
-        <div class="result-actions">
-          <button id="btn-copy" class="btn btn-outline btn-sm">복사</button>
-          <div class="dropdown">
-            <button id="btn-download" class="btn btn-primary btn-sm">↓ 다운로드</button>
-            <div id="download-menu" class="dropdown-menu hidden">
-              <button class="dropdown-item" data-format="xlsx">다운로드 Excel</button>
-              <button class="dropdown-item" data-format="csv">다운로드 CSV</button>
-              <button class="dropdown-item" data-format="json">다운로드 JSON</button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div class="result-meta">
-        <span id="row-count">행 수: 0</span>
-        <span class="result-meta-sep">|</span>
-        <span id="result-source"></span>
-      </div>
-
-      <!-- 데이터 테이블 -->
-      <div class="table-wrapper">
-        <table id="result-table" class="data-table" role="grid">
-          <thead id="table-head"></thead>
-          <tbody id="table-body"></tbody>
-        </table>
-      </div>
-
-      <!-- 페이지네이션 -->
-      <div id="pagination" class="pagination hidden">
-        <button id="btn-prev" class="btn btn-ghost btn-sm" disabled>&lt;</button>
-        <span id="page-info">1</span>
-        <button id="btn-next" class="btn btn-ghost btn-sm">&gt;</button>
-      </div>
-    </div>
-
-    <!-- === Clone 모드 === -->
-
-    <!-- Clone Step 1: 구조 감지 -->
-    <div id="clone-step1" class="step-content hidden">
-      <h2 class="step-title">🏗️ 사이트 구조 감지</h2>
-      <p class="clone-desc">페이지에서 반복되는 데이터 패턴을 자동으로 찾습니다.</p>
-      <button id="btn-clone-detect" class="btn btn-ai btn-lg">
-        <span>✨</span> 구조 감지 시작
-      </button>
-
-      <!-- 감지 결과 카드 -->
-      <div id="clone-patterns" class="clone-patterns hidden"></div>
-
-      <!-- 에러 메시지 -->
-      <p id="clone-error" class="clone-error hidden"></p>
-    </div>
-
-    <!-- Clone Step 2: 필드 확인/편집 -->
-    <div id="clone-step2" class="step-content hidden">
-      <h2 class="step-title">필드 확인</h2>
-      <p class="clone-desc">AI가 추론한 컬럼을 확인하고 수정하세요.</p>
-
-      <div id="clone-fields" class="field-list"></div>
-
-      <!-- 미리보기 테이블 -->
-      <div id="clone-preview" class="clone-preview hidden">
-        <h3 class="clone-preview-title">미리보기</h3>
-        <div class="table-wrapper" style="max-height: 200px;">
-          <table id="clone-preview-table" class="data-table">
-            <thead id="clone-preview-head"></thead>
-            <tbody id="clone-preview-body"></tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-
-    <!-- Clone Step 3: 내보내기 -->
-    <div id="clone-step3" class="step-content hidden">
-      <h2 class="step-title">데이터 내보내기</h2>
-      <p class="clone-desc">추출된 데이터를 원하는 형식으로 내보냅니다.</p>
-
-      <div id="clone-result-info" class="clone-result-info"></div>
-
-      <div class="clone-export-options">
-        <button class="btn btn-primary btn-lg clone-export-btn" data-clone-format="json">
-          📄 JSON 다운로드
-        </button>
-        <button class="btn btn-outline btn-lg clone-export-btn" data-clone-format="csv">
-          📊 CSV 다운로드
-        </button>
-        <button class="btn btn-outline btn-lg clone-export-btn" data-clone-format="clipboard">
-          📋 클립보드 복사
-        </button>
-      </div>
-
-      <!-- 결과 테이블 -->
-      <div class="table-wrapper" style="margin-top: 16px;">
-        <table id="clone-result-table" class="data-table">
-          <thead id="clone-result-head"></thead>
-          <tbody id="clone-result-body"></tbody>
-        </table>
-      </div>
-
-      <div id="clone-pagination" class="pagination hidden">
-        <button id="clone-btn-prev" class="btn btn-ghost btn-sm" disabled>&lt;</button>
-        <span id="clone-page-info">1</span>
-        <button id="clone-btn-next" class="btn btn-ghost btn-sm">&gt;</button>
-      </div>
-    </div>
-
-    <!-- 프로그레스 -->
-    <div id="progress-section" class="progress-section hidden">
-      <div class="progress-bar">
-        <div class="progress-fill" id="progress-fill"></div>
-      </div>
-      <div class="progress-status" id="progress-status"></div>
-      <div class="progress-detail" id="progress-detail"></div>
-    </div>
-
-    <!-- 소스 정보 바 -->
+    <!-- 소스 정보 -->
     <div id="source-bar" class="source-bar hidden">
-      <span class="source-label">소스:</span>
+      <span class="source-label" data-i18n="source">Source:</span>
       <span id="source-name" class="source-name"></span>
     </div>
 
-    <!-- 하단 네비게이션 -->
-    <div class="bottom-nav">
-      <button id="btn-back" class="btn btn-ghost hidden">&larr;</button>
-      <button id="btn-next-step" class="btn btn-primary btn-lg">다음 →</button>
+    <!-- 분석 시작 섹션 -->
+    <div id="analyze-section" class="analyze-section">
+      <button id="btn-analyze" class="btn btn-analyze btn-lg">
+        <span id="analyze-icon" class="analyze-icon">🔍</span>
+        <span id="analyze-text" data-i18n="analyzeSite">Analyze Site</span>
+      </button>
+      <p id="analyze-status" class="analyze-status"></p>
     </div>
+
+    <!-- 결과 섹션 -->
+    <div id="result-section" class="result-section hidden">
+      <!-- 결과 요약 -->
+      <div id="result-info" class="result-info"></div>
+
+      <!-- 데이터 다운로드 -->
+      <h3 class="section-title" data-i18n="exportData">Export Data</h3>
+      <div class="download-grid">
+        <button class="btn btn-download export-btn" data-format="json">
+          <span class="dl-icon">📄</span>
+          <span class="dl-label">JSON</span>
+        </button>
+        <button class="btn btn-download export-btn" data-format="csv">
+          <span class="dl-icon">📊</span>
+          <span class="dl-label">CSV</span>
+        </button>
+        <button class="btn btn-download export-btn" data-format="clipboard">
+          <span class="dl-icon">📋</span>
+          <span class="dl-label" data-i18n="copy">Copy</span>
+        </button>
+      </div>
+
+      <!-- 사이트 복제 -->
+      <h3 class="section-title" data-i18n="siteClone">Site Clone</h3>
+      <div class="download-grid">
+        <button id="btn-clone-html" class="btn btn-download">
+          <span class="dl-icon">🌐</span>
+          <span class="dl-label" data-i18n="htmlClone">HTML Clone</span>
+        </button>
+        <button id="btn-site-package" class="btn btn-download btn-accent">
+          <span class="dl-icon">📦</span>
+          <span class="dl-label" data-i18n="sitePackage">Site Package</span>
+        </button>
+      </div>
+
+      <!-- 결과 테이블 (접이식) -->
+      <details class="result-details">
+        <summary class="result-summary">
+          <span id="table-toggle-text" data-i18n="viewData">View Extracted Data</span>
+        </summary>
+        <div class="table-wrapper">
+          <table id="result-table" class="data-table">
+            <thead id="result-head"></thead>
+            <tbody id="result-body"></tbody>
+          </table>
+        </div>
+        <div id="pagination" class="pagination hidden">
+          <button id="btn-prev" class="btn btn-ghost btn-sm" disabled>&lt;</button>
+          <span id="page-info">1</span>
+          <button id="btn-next" class="btn btn-ghost btn-sm">&gt;</button>
+        </div>
+      </details>
+    </div>
+
+    <!-- 에러 -->
+    <p id="error-msg" class="error-msg hidden"></p>
   </div>
 
   <script type="module" src="sidepanel.ts"></script>

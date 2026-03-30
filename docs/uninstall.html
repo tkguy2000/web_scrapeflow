@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ScrapeFlow - Feedback</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      background: #0f0f1a;
+      color: #e8e8f0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    /* 그라디언트 헤더 */
+    .header {
+      width: 100%;
+      background: linear-gradient(135deg, #1a1a2e 0%, #2d1b69 50%, #1a1a2e 100%);
+      padding: 48px 20px;
+      text-align: center;
+    }
+
+    .header-top {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      position: relative;
+      max-width: 560px;
+      margin: 0 auto;
+    }
+
+    .logo {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+
+    .logo-icon {
+      width: 36px;
+      height: 36px;
+      background: linear-gradient(135deg, #6c5ce7, #8b5cf6);
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      font-weight: 700;
+      color: #fff;
+    }
+
+    .logo-text {
+      font-size: 24px;
+      font-weight: 700;
+      color: #fff;
+    }
+
+    .logo-sub {
+      display: block;
+      font-size: 11px;
+      color: #9898b0;
+      margin-top: 4px;
+      letter-spacing: 0.5px;
+    }
+
+    /* 언어 토글 */
+    .lang-toggle {
+      position: absolute;
+      right: 0;
+      top: 0;
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 6px;
+      padding: 5px 12px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      color: #ccc;
+      transition: all 0.15s;
+    }
+
+    .lang-toggle:hover {
+      background: rgba(255, 255, 255, 0.2);
+      color: #fff;
+    }
+
+    /* 메인 콘텐츠 */
+    .container {
+      width: 100%;
+      max-width: 560px;
+      padding: 0 20px;
+      margin-top: -20px;
+    }
+
+    /* 카드 */
+    .card {
+      background: #1e1e32;
+      border: 1px solid #2a2a45;
+      border-radius: 12px;
+      padding: 32px;
+      margin-bottom: 16px;
+    }
+
+    .card-goodbye {
+      border-left: 4px solid #6c5ce7;
+    }
+
+    .goodbye-title {
+      font-size: 22px;
+      font-weight: 700;
+      margin-bottom: 8px;
+      color: #f0f0f8;
+    }
+
+    .goodbye-desc {
+      font-size: 14px;
+      color: #9898b0;
+      line-height: 1.6;
+    }
+
+    /* 필수 표시 */
+    .required {
+      color: #ef4444;
+      font-size: 12px;
+      margin-bottom: 20px;
+    }
+
+    .required-mark {
+      color: #ef4444;
+    }
+
+    /* 폼 요소 */
+    .form-label {
+      display: block;
+      font-size: 15px;
+      font-weight: 600;
+      margin-bottom: 12px;
+      color: #e8e8f0;
+    }
+
+    .form-input {
+      width: 100%;
+      background: #151525;
+      border: 1px solid #2a2a45;
+      border-radius: 8px;
+      padding: 10px 14px;
+      color: #e8e8f0;
+      font-size: 14px;
+      font-family: inherit;
+      transition: border-color 0.2s;
+    }
+
+    .form-input:focus {
+      outline: none;
+      border-color: #6c5ce7;
+    }
+
+    .form-input::placeholder {
+      color: #6b6b88;
+    }
+
+    /* 라디오 그룹 */
+    .radio-group {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .radio-option {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 12px;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background 0.15s;
+      font-size: 14px;
+      color: #c8c8d8;
+    }
+
+    .radio-option:hover {
+      background: rgba(108, 92, 231, 0.08);
+    }
+
+    .radio-option input[type="radio"] {
+      appearance: none;
+      -webkit-appearance: none;
+      width: 18px;
+      height: 18px;
+      border: 2px solid #3a3a5c;
+      border-radius: 50%;
+      background: transparent;
+      cursor: pointer;
+      transition: all 0.15s;
+      flex-shrink: 0;
+    }
+
+    .radio-option input[type="radio"]:checked {
+      border-color: #6c5ce7;
+      background: #6c5ce7;
+      box-shadow: inset 0 0 0 3px #1e1e32;
+    }
+
+    /* 기타 입력 */
+    .other-input {
+      margin-left: 30px;
+      margin-top: 4px;
+      display: none;
+    }
+
+    .other-input.visible {
+      display: block;
+    }
+
+    .other-input .form-input {
+      width: calc(100% - 30px);
+    }
+
+    /* 추가 의견 */
+    .form-textarea {
+      width: 100%;
+      background: #151525;
+      border: 1px solid #2a2a45;
+      border-radius: 8px;
+      padding: 10px 14px;
+      color: #e8e8f0;
+      font-size: 14px;
+      font-family: inherit;
+      resize: vertical;
+      min-height: 80px;
+      transition: border-color 0.2s;
+    }
+
+    .form-textarea:focus {
+      outline: none;
+      border-color: #6c5ce7;
+    }
+
+    .form-textarea::placeholder {
+      color: #6b6b88;
+    }
+
+    /* 제출 버튼 */
+    .btn-submit {
+      width: 100%;
+      background: #6c5ce7;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      padding: 12px 24px;
+      font-size: 15px;
+      font-weight: 600;
+      font-family: inherit;
+      cursor: pointer;
+      transition: background 0.15s;
+      margin-top: 8px;
+    }
+
+    .btn-submit:hover {
+      background: #5a4bd1;
+    }
+
+    .btn-submit:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    /* 감사 메시지 */
+    .thank-you {
+      text-align: center;
+      padding: 40px 20px;
+      display: none;
+    }
+
+    .thank-you.visible {
+      display: block;
+    }
+
+    .thank-you-icon {
+      font-size: 48px;
+      margin-bottom: 16px;
+    }
+
+    .thank-you-title {
+      font-size: 20px;
+      font-weight: 700;
+      margin-bottom: 8px;
+      color: #f0f0f8;
+    }
+
+    .thank-you-desc {
+      font-size: 14px;
+      color: #9898b0;
+      line-height: 1.6;
+    }
+
+    /* 에러 메시지 */
+    .error-msg {
+      color: #ef4444;
+      font-size: 13px;
+      margin-top: 8px;
+      display: none;
+    }
+
+    .error-msg.visible {
+      display: block;
+    }
+
+    /* 푸터 */
+    .footer {
+      text-align: center;
+      padding: 24px 20px;
+      color: #6b6b88;
+      font-size: 12px;
+    }
+  </style>
+</head>
+<body>
+  <!-- 헤더 -->
+  <div class="header">
+    <div class="header-top">
+      <div class="logo">
+        <div class="logo-icon">S</div>
+        <div>
+          <span class="logo-text">ScrapeFlow</span>
+          <span class="logo-sub">AI Web Scraper</span>
+        </div>
+      </div>
+      <button class="lang-toggle" id="langToggle"></button>
+    </div>
+  </div>
+
+  <div class="container">
+    <!-- 인사말 카드 -->
+    <div class="card card-goodbye">
+      <div class="goodbye-title" data-i18n="goodbyeTitle"></div>
+      <div class="goodbye-desc" data-i18n="goodbyeDesc"></div>
+    </div>
+
+    <!-- 피드백 폼 -->
+    <form id="feedbackForm">
+      <div class="card">
+        <p class="required" data-i18n="required"></p>
+
+        <!-- 이메일 -->
+        <div style="margin-bottom: 24px;">
+          <label class="form-label" data-i18n="emailLabel"></label>
+          <input type="email" class="form-input" id="email" data-i18n-ph="emailPlaceholder">
+        </div>
+
+        <!-- 삭제 사유 -->
+        <div style="margin-bottom: 24px;">
+          <label class="form-label" id="reasonLabel"></label>
+          <div class="radio-group">
+            <label class="radio-option">
+              <input type="radio" name="reason" value="too_complicated">
+              <span data-i18n="reason_too_complicated"></span>
+            </label>
+            <label class="radio-option">
+              <input type="radio" name="reason" value="cannot_sign_in">
+              <span data-i18n="reason_cannot_sign_in"></span>
+            </label>
+            <label class="radio-option">
+              <input type="radio" name="reason" value="not_useful">
+              <span data-i18n="reason_not_useful"></span>
+            </label>
+            <label class="radio-option">
+              <input type="radio" name="reason" value="browser_issue">
+              <span data-i18n="reason_browser_issue"></span>
+            </label>
+            <label class="radio-option">
+              <input type="radio" name="reason" value="other">
+              <span data-i18n="reason_other"></span>
+            </label>
+          </div>
+          <div class="other-input" id="otherInput">
+            <input type="text" class="form-input" id="otherText" data-i18n-ph="otherPlaceholder">
+          </div>
+        </div>
+
+        <!-- 추가 의견 -->
+        <div style="margin-bottom: 16px;">
+          <label class="form-label" data-i18n="commentsLabel"></label>
+          <textarea class="form-textarea" id="comments" data-i18n-ph="commentsPlaceholder"></textarea>
+        </div>
+
+        <div class="error-msg" id="errorMsg"></div>
+        <button type="submit" class="btn-submit" id="submitBtn"></button>
+      </div>
+    </form>
+
+    <!-- 감사 메시지 (제출 후 표시) -->
+    <div class="card thank-you" id="thankYou">
+      <div class="thank-you-icon">🙏</div>
+      <div class="thank-you-title" data-i18n="thankTitle"></div>
+      <div class="thank-you-desc" id="thankDesc"></div>
+    </div>
+  </div>
+
+  <div class="footer">
+    &copy; 2025 ScrapeFlow. All rights reserved.
+  </div>
+
+  <script>
+    // Google Apps Script 웹 앱 URL
+    const FEEDBACK_ENDPOINT = 'https://script.google.com/macros/s/AKfycbwWR4jwYODZvFBi41I5i65aSjlzkv6XoUBRqhAhGP2euIYkbZX2_I9PjDFLAMaj9Sv0iA/exec';
+
+    // 다국어 번역
+    const i18n = {
+      ko: {
+        goodbyeTitle: 'ScrapeFlow를 삭제해 주셔서 아쉽습니다',
+        goodbyeDesc: 'ScrapeFlow를 사용해 주셔서 감사합니다. 더 나은 서비스를 위해 피드백을 보내주시면 큰 도움이 됩니다.',
+        required: '* 필수 항목',
+        emailLabel: '이메일 (선택)',
+        emailPlaceholder: 'example@email.com',
+        reasonLabel: '삭제하신 주된 이유가 무엇인가요?',
+        reason_too_complicated: '너무 복잡함',
+        reason_cannot_sign_in: '로그인 불가',
+        reason_not_useful: '유용하지 않음',
+        reason_browser_issue: '브라우저와 호환되지 않음',
+        reason_other: '기타:',
+        otherPlaceholder: '직접 입력해 주세요',
+        commentsLabel: '추가 의견 (선택)',
+        commentsPlaceholder: '개선할 점이나 건의사항이 있다면 알려주세요',
+        submit: '피드백 보내기',
+        submitting: '전송 중...',
+        errorRequired: '삭제 사유를 선택해 주세요.',
+        errorFailed: '피드백 전송에 실패했습니다. 나중에 다시 시도해 주세요.',
+        thankTitle: '감사합니다!',
+        thankDesc1: '소중한 피드백을 보내주셔서 감사합니다.',
+        thankDesc2: '더 나은 ScrapeFlow를 만들기 위해 노력하겠습니다.',
+        toggleLabel: 'EN'
+      },
+      en: {
+        goodbyeTitle: "We're sorry to see you go",
+        goodbyeDesc: 'Thank you for using ScrapeFlow. We would appreciate your feedback to help us improve.',
+        required: '* Required',
+        emailLabel: 'Email (optional)',
+        emailPlaceholder: 'example@email.com',
+        reasonLabel: 'What is the primary reason you uninstalled?',
+        reason_too_complicated: 'Too complicated',
+        reason_cannot_sign_in: 'Cannot sign in',
+        reason_not_useful: 'Not useful enough',
+        reason_browser_issue: "Doesn't work with my browser",
+        reason_other: 'Other:',
+        otherPlaceholder: 'Please specify',
+        commentsLabel: 'Additional comments (optional)',
+        commentsPlaceholder: 'Any suggestions or improvements you would like to share',
+        submit: 'Send Feedback',
+        submitting: 'Sending...',
+        errorRequired: 'Please select a reason.',
+        errorFailed: 'Failed to send feedback. Please try again later.',
+        thankTitle: 'Thank you!',
+        thankDesc1: 'We appreciate your feedback.',
+        thankDesc2: 'We will work hard to make ScrapeFlow better.',
+        toggleLabel: '한'
+      }
+    };
+
+    let currentLang = 'en';
+
+    function toggleLang() {
+      currentLang = currentLang === 'ko' ? 'en' : 'ko';
+      applyLang();
+    }
+
+    function applyLang() {
+      const t = i18n[currentLang];
+      document.documentElement.lang = currentLang;
+
+      // textContent로 안전하게 업데이트
+      document.querySelectorAll('[data-i18n]').forEach(el => {
+        const key = el.getAttribute('data-i18n');
+        if (t[key]) el.textContent = t[key];
+      });
+
+      // placeholder 업데이트
+      document.querySelectorAll('[data-i18n-ph]').forEach(el => {
+        const key = el.getAttribute('data-i18n-ph');
+        if (t[key]) el.placeholder = t[key];
+      });
+
+      // 필수 마크가 포함된 라벨 (안전하게 DOM 조작)
+      const reasonLabel = document.getElementById('reasonLabel');
+      reasonLabel.textContent = '';
+      reasonLabel.appendChild(document.createTextNode(t.reasonLabel + ' '));
+      const mark = document.createElement('span');
+      mark.className = 'required-mark';
+      mark.textContent = '*';
+      reasonLabel.appendChild(mark);
+
+      // 감사 메시지 (br 포함)
+      const thankDesc = document.getElementById('thankDesc');
+      thankDesc.textContent = '';
+      thankDesc.appendChild(document.createTextNode(t.thankDesc1));
+      thankDesc.appendChild(document.createElement('br'));
+      thankDesc.appendChild(document.createTextNode(t.thankDesc2));
+
+      // 버튼, 토글
+      document.getElementById('submitBtn').textContent = t.submit;
+      document.getElementById('langToggle').textContent = t.toggleLabel;
+    }
+
+    // 폼 요소
+    const form = document.getElementById('feedbackForm');
+    const otherInput = document.getElementById('otherInput');
+    const errorMsg = document.getElementById('errorMsg');
+    const thankYou = document.getElementById('thankYou');
+    const submitBtn = document.getElementById('submitBtn');
+
+    document.getElementById('langToggle').addEventListener('click', toggleLang);
+
+    // 기타 선택 시 텍스트 입력 표시
+    document.querySelectorAll('input[name="reason"]').forEach(radio => {
+      radio.addEventListener('change', () => {
+        otherInput.classList.toggle('visible', radio.value === 'other' && radio.checked);
+      });
+    });
+
+    // 폼 제출
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const t = i18n[currentLang];
+      errorMsg.classList.remove('visible');
+
+      const reason = document.querySelector('input[name="reason"]:checked');
+      if (!reason) {
+        errorMsg.textContent = t.errorRequired;
+        errorMsg.classList.add('visible');
+        return;
+      }
+
+      const data = {
+        email: document.getElementById('email').value.trim(),
+        reason: reason.value,
+        otherText: reason.value === 'other' ? document.getElementById('otherText').value.trim() : '',
+        comments: document.getElementById('comments').value.trim(),
+        lang: currentLang,
+        timestamp: new Date().toISOString()
+      };
+
+      if (!FEEDBACK_ENDPOINT) {
+        console.log('Feedback data:', data);
+        showThankYou();
+        return;
+      }
+
+      submitBtn.disabled = true;
+      submitBtn.textContent = t.submitting;
+
+      try {
+        await fetch(FEEDBACK_ENDPOINT, {
+          method: 'POST',
+          body: JSON.stringify(data),
+          mode: 'no-cors'
+        });
+        showThankYou();
+      } catch (err) {
+        errorMsg.textContent = t.errorFailed;
+        errorMsg.classList.add('visible');
+        submitBtn.disabled = false;
+        submitBtn.textContent = t.submit;
+      }
+    });
+
+    function showThankYou() {
+      form.style.display = 'none';
+      thankYou.classList.add('visible');
+    }
+
+    // 브라우저 언어 감지: 한국어면 한국어, 아니면 영어(기본)
+    if (navigator.language && navigator.language.startsWith('ko')) {
+      currentLang = 'ko';
+    }
+    applyLang();
+  </script>
+</body>
+</html>

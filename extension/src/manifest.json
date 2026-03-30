@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "ScrapeFlow",
-  "description": "AI 웹 스크래퍼 - 데이터 추출, 내보내기, 풀 페이지 캡처",
+  "description": "AI Web Scraper — Extract data, export to multiple formats, full page capture",
   "version": "0.1.0",
   "permissions": [
     "activeTab",

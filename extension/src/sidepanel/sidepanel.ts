@@ -1,677 +1,216 @@
 import { MessageType } from '../lib/types';
-import type { ScrapeResult, ExportFormat, Message, DetectedPatternInfo } from '../lib/types';
+import type { ScrapeResult, ScrapeRow, ExportFormat, DetectedPatternInfo } from '../lib/types';
 import { downloadData } from '../lib/export';
-import { getResults, saveResult } from '../lib/storage';
+
+// === 다국어 텍스트 ===
+type I18nValue = string | ((...args: string[]) => string);
+const i18n: Record<string, Record<string, I18nValue>> = {
+  en: {
+    source: 'Source:',
+    analyzeSite: 'Analyze Site',
+    analyzing: 'Analyzing...',
+    detectingPatterns: '🔍 Detecting patterns...',
+    extractingData: '📊 Extracting data...',
+    analysisComplete: '✅ Analysis complete!',
+    exportData: 'Export Data',
+    copy: 'Copy',
+    siteClone: 'Site Clone',
+    htmlClone: 'HTML Clone',
+    sitePackage: 'Site Package',
+    viewData: 'View Extracted Data',
+    generating: 'Generating...',
+    noPatternFound: 'No extractable data patterns found. Try HTML Clone instead.',
+    patternFailed: 'Pattern detection failed — use Site Clone features',
+    noDataFound: 'No data found. Try HTML Clone instead.',
+    noDataExtracted: 'No data extracted — use Site Clone features',
+    analysisFailed: 'Analysis failed',
+    cloneFailed: 'Clone failed',
+    emptyHtml: 'Empty HTML',
+    packageFailed: 'Package generation failed',
+    rowsColsExtracted: (rows: string, cols: string) => `${rows} rows × ${cols} columns extracted`,
+    viewDataRows: (rows: string) => `View Extracted Data (${rows} rows)`,
+    langToggle: 'EN/한',
+  },
+  ko: {
+    source: '소스:',
+    analyzeSite: '사이트 분석',
+    analyzing: '분석 중...',
+    detectingPatterns: '🔍 반복 패턴 감지 중...',
+    extractingData: '📊 데이터 추출 중...',
+    analysisComplete: '✅ 분석 완료!',
+    exportData: '데이터 내보내기',
+    copy: '복사',
+    siteClone: '사이트 복제',
+    htmlClone: 'HTML 클론',
+    sitePackage: '사이트 패키지',
+    viewData: '추출 데이터 보기',
+    generating: '생성 중...',
+    noPatternFound: '추출 가능한 데이터 패턴을 찾지 못했습니다. HTML 클론을 사용해보세요.',
+    patternFailed: '패턴 감지 실패 — 사이트 복제 기능을 사용하세요',
+    noDataFound: '데이터를 찾지 못했습니다. HTML 클론을 사용해보세요.',
+    noDataExtracted: '추출된 데이터 없음 — 사이트 복제 기능을 사용하세요',
+    analysisFailed: '분석 실패',
+    cloneFailed: '클론 실패',
+    emptyHtml: '빈 HTML',
+    packageFailed: '패키지 생성 실패',
+    rowsColsExtracted: (rows: string, cols: string) => `${rows}행 × ${cols}열 추출 완료`,
+    viewDataRows: (rows: string) => `추출 데이터 보기 (${rows}행)`,
+    langToggle: '한/EN',
+  },
+};
+
+let currentLang = 'en';
+
+function t(key: string, ...args: string[]): string {
+  const val = i18n[currentLang]?.[key] ?? i18n['en'][key] ?? key;
+  if (typeof val === 'function') return val(...args);
+  return val;
+}
+
+function applyLang(lang: string): void {
+  currentLang = lang;
+  document.documentElement.lang = lang === 'ko' ? 'ko' : 'en';
+
+  // data-i18n 속성으로 정적 텍스트 업데이트
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    const key = el.getAttribute('data-i18n')!;
+    const val = i18n[lang]?.[key];
+      if (val && typeof val === 'string') el.textContent = val;
+  });
+
+  // 토글 버튼
+  const $langBtn = document.getElementById('lang-toggle');
+  if ($langBtn) $langBtn.textContent = t('langToggle');
+
+  chrome.storage.local.set({ sf_lang: lang });
+}
 
 // === State ===
-let currentStep = 1;
-let selectedSource: 'current' | 'links' | 'file' = 'current';
-let selectedNav: 'auto' | 'none' | 'click' | 'scroll' = 'auto';
 let currentResult: ScrapeResult | null = null;
-let fields: { name: string; type: string }[] = [];
+let patterns: (DetectedPatternInfo & { columns?: { name: string; selector: string; type: string; attribute?: string }[] })[] = [];
+let columns: { name: string; selector: string; type: string; attribute?: string }[] = [];
 let currentPage = 1;
 const PAGE_SIZE = 20;
 
-// Clone 모드 state
-let isCloneMode = false;
-let cloneStep = 1;
-let clonePatterns: (DetectedPatternInfo & { columns?: { name: string; selector: string; type: string; attribute?: string }[] })[] = [];
-let cloneColumns: { name: string; selector: string; type: string; attribute?: string }[] = [];
-let cloneResult: ScrapeResult | null = null;
-let clonePage = 1;
-
 // === DOM refs ===
 const $ = (id: string) => document.getElementById(id)!;
-const $stepFill = $('step-fill') as HTMLDivElement;
-const $stepLabel = $('step-label');
-const $step1 = $('step1');
-const $step2 = $('step2');
-const $step3 = $('step3');
-const $resultView = $('result-view');
-const $btnBack = $('btn-back') as HTMLButtonElement;
-const $btnNext = $('btn-next-step') as HTMLButtonElement;
-const $progressSection = $('progress-section');
-const $progressFill = $('progress-fill') as HTMLDivElement;
-const $progressStatus = $('progress-status');
-const $progressDetail = $('progress-detail');
 const $sourceBar = $('source-bar');
 const $sourceName = $('source-name');
-const $templateEditor = $('template-editor');
-const $fieldList = $('field-list');
+const $btnAnalyze = $('btn-analyze') as HTMLButtonElement;
+const $analyzeIcon = $('analyze-icon');
+const $analyzeText = $('analyze-text');
+const $analyzeStatus = $('analyze-status');
+const $resultSection = $('result-section');
+const $errorMsg = $('error-msg');
 
-// === Step navigation ===
-function goToStep(step: number): void {
-  currentStep = step;
-  isCloneMode = false; // 일반 모드 명시
-  [$step1, $step2, $step3, $resultView].forEach((el) => el.classList.add('hidden'));
-  // clone step도 숨김
-  $('clone-step1').classList.add('hidden');
-  $('clone-step2').classList.add('hidden');
-  $('clone-step3').classList.add('hidden');
-
-  if (step <= 3) {
-    $stepFill.style.width = `${(step / 3) * 100}%`;
-    $stepLabel.textContent = `${step}/3`;
-    $('step-indicator').classList.remove('hidden');
-    $btnNext.classList.remove('hidden');
-    $('bottom-nav').classList.remove('hidden');
-  }
-
-  switch (step) {
-    case 1:
-      $step1.classList.remove('hidden');
-      $btnBack.classList.add('hidden');
-      $btnNext.textContent = '다음 →';
-      break;
-    case 2:
-      $step2.classList.remove('hidden');
-      $btnBack.classList.remove('hidden');
-      $btnNext.textContent = '다음 →';
-      break;
-    case 3:
-      $step3.classList.remove('hidden');
-      $btnBack.classList.remove('hidden');
-      $btnNext.textContent = '▶ 지금 실행';
-      break;
-    case 4: // 결과
-      $resultView.classList.remove('hidden');
-      $('step-indicator').classList.add('hidden');
-      $btnNext.classList.add('hidden');
-      $btnBack.classList.remove('hidden');
-      break;
-  }
-}
-
-// === Option selection ===
-function setupOptionCards(container: string, callback: (value: string) => void): void {
-  const parent = $(container);
-  parent.querySelectorAll('.option-card').forEach((card) => {
-    card.addEventListener('click', () => {
-      parent.querySelectorAll('.option-card').forEach((c) => c.classList.remove('selected'));
-      card.classList.add('selected');
-      const value = (card as HTMLElement).dataset['source'] || (card as HTMLElement).dataset['nav'] || '';
-      callback(value);
-    });
-  });
-}
-
-// === Field management ===
-const FIELD_TYPE_ICONS: Record<string, string> = {
-  text: 'Aa', link: '🔗', image: '🖼️', number: '#',
-};
-
-function renderFields(): void {
-  $fieldList.textContent = '';
-  fields.forEach((field, i) => {
-    const item = document.createElement('div');
-    item.className = 'field-item';
-
-    const icon = document.createElement('span');
-    icon.className = 'field-type-icon';
-    icon.textContent = FIELD_TYPE_ICONS[field.type] || 'Aa';
-
-    const name = document.createElement('span');
-    name.className = 'field-name';
-    name.textContent = field.name;
-
-    const remove = document.createElement('button');
-    remove.className = 'field-remove';
-    remove.textContent = '×';
-    remove.setAttribute('aria-label', `${field.name} 필드 삭제`);
-    remove.addEventListener('click', () => {
-      fields.splice(i, 1);
-      renderFields();
-    });
-
-    item.appendChild(icon);
-    item.appendChild(name);
-    item.appendChild(remove);
-    $fieldList.appendChild(item);
-  });
-
-  if (fields.length > 0) {
-    $('btn-add-field').classList.remove('hidden');
-    $('btn-subpage').classList.remove('hidden');
-  }
-}
-
-function addField(name: string, type = 'text'): void {
-  fields.push({ name, type });
-  renderFields();
-}
-
-// === AI Field suggestion ===
-$('btn-ai-fields').addEventListener('click', async () => {
-  const btn = $('btn-ai-fields') as HTMLButtonElement;
-  btn.disabled = true;
-  btn.textContent = '✨ AI 분석 중...';
-
-  try {
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    if (!tab?.id) return;
-
-    const response = await chrome.tabs.sendMessage<Message, unknown>(tab.id, {
-      type: MessageType.GET_PAGE_INFO,
-    });
-
-    // AI로 필드 추천 — Background SW에 요청
-    const result = await chrome.runtime.sendMessage({
-      type: MessageType.SCRAPE_START,
-      payload: { tabId: tab.id, aiPrompt: 'auto-detect all fields' },
-    });
-
-    if (result?.columns) {
-      fields = result.columns.map((col: string) => ({
-        name: col,
-        type: col.toLowerCase().includes('url') || col.toLowerCase().includes('link') ? 'link'
-          : col.toLowerCase().includes('image') || col.toLowerCase().includes('img') ? 'image'
-          : 'text',
-      }));
-      renderFields();
-      $templateEditor.classList.remove('hidden');
-    }
-  } catch (err) {
-    console.error('AI field suggestion failed:', err);
-    // 폴백: 기본 필드 제안
-    fields = [
-      { name: 'Title', type: 'text' },
-      { name: 'URL', type: 'link' },
-      { name: 'Description', type: 'text' },
-    ];
-    renderFields();
-    $templateEditor.classList.remove('hidden');
-  } finally {
-    btn.disabled = false;
-    btn.textContent = '✨ AI 추천 필드';
-  }
-});
-
-// 직접 입력
-$('btn-manual-fields').addEventListener('click', () => {
-  $templateEditor.classList.remove('hidden');
-  if (fields.length === 0) {
-    addField('Field 1');
-  }
-});
-
-// 필드 추가
-$('btn-add-field').addEventListener('click', () => {
-  const name = `Field ${fields.length + 1}`;
-  addField(name);
-});
-
-// 새 템플릿
-$('btn-new-template').addEventListener('click', () => {
-  $templateEditor.classList.remove('hidden');
-  fields = [];
-  renderFields();
-});
-
-// === Scraping execution ===
-async function runScraping(): Promise<void> {
-  showProgress('작업 진행 중...', 0);
+// === 원클릭 분석: 패턴 감지 → 데이터 추출 → 결과 표시 ===
+async function runFullAnalysis(): Promise<void> {
+  $btnAnalyze.disabled = true;
+  $analyzeIcon.classList.add('spinning');
+  $analyzeText.textContent = t('analyzing');
+  $analyzeStatus.textContent = t('detectingPatterns');
+  $errorMsg.classList.add('hidden');
+  $resultSection.classList.add('hidden');
 
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-  if (!tab?.id) return;
+  if (!tab?.id) {
+    resetAnalyzeBtn();
+    return;
+  }
 
   try {
-    updateProgress('1 페이지 스크래핑 완료', 30);
-    updateProgressDetail(`데이터 추출 중\n↔ ${tab.url}`);
+    // Step 1: 패턴 감지
+    $analyzeStatus.textContent = t('detectingPatterns');
+    const detectResponse = await chrome.runtime.sendMessage({
+      type: MessageType.CLONE_DETECT_PATTERNS,
+      payload: { tabId: tab.id },
+    }) as { patterns: (DetectedPatternInfo & { columns?: { name: string; selector: string; type: string; attribute?: string }[] })[]; error?: string };
 
-    // Content Script에 스크래핑 요청
-    const result = await chrome.tabs.sendMessage(tab.id, {
-      type: MessageType.SCRAPE_START,
-    });
+    if (detectResponse.error && (!detectResponse.patterns || detectResponse.patterns.length === 0)) {
+      showError(detectResponse.error);
+      return;
+    }
 
-    if (result?.rows?.length > 0) {
-      currentResult = result;
-      await saveResult(result);
-      updateProgress('스크래핑 완료', 100);
+    patterns = detectResponse.patterns ?? [];
+    const bestPattern = patterns[0];
+    columns = bestPattern?.columns ?? [];
 
-      setTimeout(() => {
-        hideProgress();
-        goToStep(4);
-        renderResultTable();
-      }, 500);
+    if (columns.length === 0) {
+      showError(t('noPatternFound'));
+      $resultSection.classList.remove('hidden');
+      $('result-info').textContent = t('patternFailed');
+      return;
+    }
+
+    // Step 2: 데이터 추출
+    $analyzeStatus.textContent = t('extractingData');
+    const extractResponse = await chrome.runtime.sendMessage({
+      type: MessageType.CLONE_EXTRACT_DATA,
+      payload: {
+        tabId: tab.id,
+        containerSelector: bestPattern.containerSelector,
+        itemSelector: bestPattern.signature.split(':')[0].toLowerCase(),
+        columns,
+      },
+    }) as ScrapeResult;
+
+    if (extractResponse?.rows?.length > 0) {
+      currentResult = extractResponse;
+      $resultSection.classList.remove('hidden');
+      $('result-info').textContent = t('rowsColsExtracted', String(currentResult.rows.length), String(currentResult.columns.length));
+      $('table-toggle-text').textContent = t('viewDataRows', String(currentResult.rows.length));
+      renderResultTable();
+      $analyzeStatus.textContent = t('analysisComplete');
     } else {
-      updateProgress('데이터를 찾지 못했습니다', 100);
-      updateProgressDetail('다른 설정으로 다시 시도해보세요');
+      showError(t('noDataFound'));
+      $resultSection.classList.remove('hidden');
+      $('result-info').textContent = t('noDataExtracted');
     }
   } catch (err) {
-    updateProgress('스크래핑 실패', 100);
-    updateProgressDetail(String(err));
+    showError(`${t('analysisFailed')}: ${String(err)}`);
+  } finally {
+    resetAnalyzeBtn();
   }
 }
 
-// === Progress ===
-function showProgress(status: string, percent: number): void {
-  $progressSection.classList.remove('hidden');
-  $progressFill.style.width = `${percent}%`;
-  $progressStatus.textContent = status;
+function resetAnalyzeBtn(): void {
+  $btnAnalyze.disabled = false;
+  $analyzeIcon.classList.remove('spinning');
+  $analyzeText.textContent = t('analyzeSite');
 }
 
-function updateProgress(status: string, percent: number): void {
-  $progressFill.style.width = `${percent}%`;
-  $progressStatus.textContent = status;
+function showError(msg: string): void {
+  $errorMsg.textContent = msg;
+  $errorMsg.classList.remove('hidden');
 }
 
-function updateProgressDetail(detail: string): void {
-  $progressDetail.textContent = detail;
-}
-
-function hideProgress(): void {
-  $progressSection.classList.add('hidden');
-}
-
-// === Result table ===
+// === 결과 테이블 ===
 function renderResultTable(): void {
   if (!currentResult) return;
 
-  $('row-count').textContent = `행 수: ${currentResult.rows.length}`;
-  $('result-source').textContent = currentResult.title;
+  const $head = $('result-head');
+  const $body = $('result-body');
 
-  const $tableHead = $('table-head');
-  const $tableBody = $('table-body');
-
-  // 헤더
-  $tableHead.textContent = '';
+  $head.textContent = '';
   const headerRow = document.createElement('tr');
   for (const col of currentResult.columns) {
     const th = document.createElement('th');
     th.textContent = col;
     headerRow.appendChild(th);
   }
-  $tableHead.appendChild(headerRow);
+  $head.appendChild(headerRow);
 
-  // 페이지네이션 계산
   const totalPages = Math.ceil(currentResult.rows.length / PAGE_SIZE);
   const start = (currentPage - 1) * PAGE_SIZE;
-  const end = start + PAGE_SIZE;
-  const pageRows = currentResult.rows.slice(start, end);
+  const pageRows = currentResult.rows.slice(start, start + PAGE_SIZE);
 
-  // 바디
-  $tableBody.textContent = '';
+  $body.textContent = '';
   for (const row of pageRows) {
     const tr = document.createElement('tr');
     for (const col of currentResult.columns) {
       const td = document.createElement('td');
       const value = String(row[col] ?? '');
       td.title = value;
-
-      if (value.startsWith('http://') || value.startsWith('https://')) {
-        const link = document.createElement('a');
-        link.href = value;
-        link.textContent = value.length > 40 ? value.slice(0, 40) + '...' : value;
-        link.target = '_blank';
-        link.rel = 'noopener noreferrer';
-        td.appendChild(link);
-      } else {
-        td.textContent = value;
-      }
-      tr.appendChild(td);
-    }
-    $tableBody.appendChild(tr);
-  }
-
-  // 페이지네이션 UI
-  if (totalPages > 1) {
-    $('pagination').classList.remove('hidden');
-    $('page-info').textContent = `${currentPage} / ${totalPages}`;
-    ($('btn-prev') as HTMLButtonElement).disabled = currentPage <= 1;
-    ($('btn-next') as HTMLButtonElement).disabled = currentPage >= totalPages;
-  } else {
-    $('pagination').classList.add('hidden');
-  }
-}
-
-// === Download ===
-$('btn-download').addEventListener('click', () => {
-  $('download-menu').classList.toggle('hidden');
-});
-
-document.querySelectorAll('.dropdown-item').forEach((item) => {
-  item.addEventListener('click', () => {
-    if (!currentResult) return;
-    const format = (item as HTMLElement).dataset['format'] as ExportFormat;
-    if (format === 'xlsx' as string) {
-      // Excel은 CSV로 대체 (라이브러리 없이)
-      downloadData(currentResult, 'csv');
-    } else {
-      downloadData(currentResult, format);
-    }
-    $('download-menu').classList.add('hidden');
-  });
-});
-
-$('btn-copy').addEventListener('click', () => {
-  if (!currentResult) return;
-  downloadData(currentResult, 'clipboard');
-});
-
-// === Pagination ===
-$('btn-prev').addEventListener('click', () => {
-  if (currentPage > 1) { currentPage--; renderResultTable(); }
-});
-
-$('btn-next').addEventListener('click', () => {
-  if (currentResult && currentPage < Math.ceil(currentResult.rows.length / PAGE_SIZE)) {
-    currentPage++; renderResultTable();
-  }
-});
-
-// === Navigation ===
-$btnBack.addEventListener('click', () => {
-  if (isCloneMode) {
-    if (cloneStep > 1) {
-      goToCloneStep(cloneStep - 1);
-    } else {
-      // clone Step 1에서 뒤로 → 일반 모드로 복귀
-      isCloneMode = false;
-      goToStep(1);
-    }
-  } else {
-    if (currentStep > 1) goToStep(currentStep - 1);
-  }
-});
-
-$btnNext.addEventListener('click', async () => {
-  if (isCloneMode) {
-    if (cloneStep === 1) {
-      // Step 1: 구조 감지 실행 (감지 없이 스킵 불가)
-      await runCloneDetect();
-    } else if (cloneStep === 2) {
-      await runCloneExtract();
-    }
-  } else {
-    if (currentStep === 3) {
-      await runScraping();
-    } else {
-      goToStep(currentStep + 1);
-    }
-  }
-});
-
-// === Source selection ===
-setupOptionCards('step1', (v) => {
-  selectedSource = v as typeof selectedSource;
-
-  // 링크 선택 시 URL 입력창 표시/숨김
-  const $linksArea = $('links-input-area');
-  if (v === 'links') {
-    $linksArea.classList.remove('hidden');
-    ($('links-textarea') as HTMLTextAreaElement).focus();
-  } else {
-    $linksArea.classList.add('hidden');
-  }
-});
-
-// 링크 입력창 URL 카운트
-$('links-textarea').addEventListener('input', () => {
-  const text = ($('links-textarea') as HTMLTextAreaElement).value;
-  const urls = text.split('\n').filter((line) => line.trim().startsWith('http'));
-  $('links-count').textContent = `${urls.length}개 URL`;
-});
-
-setupOptionCards('step2', (v) => {
-  selectedNav = v as typeof selectedNav;
-});
-
-// === Clone 모드 함수 ===
-
-function goToCloneStep(step: number): void {
-  cloneStep = step;
-  isCloneMode = true; // clone 모드 명시
-
-  // 모든 스텝 숨김 (일반 + clone)
-  [$step1, $step2, $step3, $resultView].forEach((el) => el.classList.add('hidden'));
-  $('clone-step1').classList.add('hidden');
-  $('clone-step2').classList.add('hidden');
-  $('clone-step3').classList.add('hidden');
-
-  // 스텝 인디케이터 업데이트
-  $stepFill.style.width = `${(step / 3) * 100}%`;
-  $stepLabel.textContent = `${step}/3`;
-  $('step-indicator').classList.remove('hidden');
-
-  // 하단 네비게이션 표시
-  $('bottom-nav').classList.remove('hidden');
-
-  switch (step) {
-    case 1:
-      $('clone-step1').classList.remove('hidden');
-      $btnBack.classList.add('hidden');
-      // "다음" 버튼을 "구조 감지 시작"으로 표시
-      $btnNext.classList.remove('hidden');
-      $btnNext.textContent = '✨ 구조 감지 시작';
-      break;
-    case 2:
-      $('clone-step2').classList.remove('hidden');
-      $btnBack.classList.remove('hidden');
-      $btnNext.classList.remove('hidden');
-      $btnNext.textContent = '▶ 데이터 추출';
-      break;
-    case 3:
-      $('clone-step3').classList.remove('hidden');
-      $btnBack.classList.remove('hidden');
-      $btnNext.classList.add('hidden');
-      $('step-indicator').classList.add('hidden');
-      break;
-  }
-}
-
-// 구조 감지 실행 — 순수 DOM 분석 (AI 불필요)
-async function runCloneDetect(): Promise<void> {
-  $btnNext.disabled = true;
-  $btnNext.textContent = '✨ 분석 중...';
-  $('clone-error').classList.add('hidden');
-
-  // "구조 감지 시작" 버튼도 비활성화
-  const detectBtn = $('btn-clone-detect') as HTMLButtonElement;
-  detectBtn.disabled = true;
-  detectBtn.textContent = '✨ 분석 중...';
-
-  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-  if (!tab?.id) {
-    $btnNext.disabled = false;
-    $btnNext.textContent = '✨ 구조 감지 시작';
-    return;
-  }
-
-  try {
-    const response = await chrome.runtime.sendMessage({
-      type: MessageType.CLONE_DETECT_PATTERNS,
-      payload: { tabId: tab.id },
-    }) as { patterns: (DetectedPatternInfo & { columns?: { name: string; selector: string; type: string; attribute?: string }[] })[]; error?: string };
-
-    if (response.error && (!response.patterns || response.patterns.length === 0)) {
-      $('clone-error').textContent = response.error;
-      $('clone-error').classList.remove('hidden');
-      return;
-    }
-
-    clonePatterns = response.patterns ?? [];
-
-    // 첫 번째 패턴의 컬럼 사용
-    const bestPattern = clonePatterns[0];
-    cloneColumns = bestPattern?.columns ?? [];
-
-    // 패턴 카드 렌더링
-    const $patterns = $('clone-patterns');
-    $patterns.textContent = '';
-    $patterns.classList.remove('hidden');
-
-    for (let i = 0; i < clonePatterns.length; i++) {
-      const p = clonePatterns[i];
-      const card = document.createElement('div');
-      card.className = 'clone-pattern-card' + (i === 0 ? ' selected' : '');
-
-      const title = document.createElement('div');
-      title.className = 'clone-pattern-title';
-      title.textContent = `패턴 ${i + 1}: ${p.itemCount}개 항목, ${(p.columns ?? []).length}개 필드 감지`;
-
-      const meta = document.createElement('div');
-      meta.className = 'clone-pattern-meta';
-      const fieldNames = (p.columns ?? []).map((c) => c.name).join(', ');
-      meta.textContent = fieldNames || p.signature;
-
-      card.appendChild(title);
-      card.appendChild(meta);
-
-      card.addEventListener('click', () => {
-        $patterns.querySelectorAll('.clone-pattern-card').forEach((c) => c.classList.remove('selected'));
-        card.classList.add('selected');
-        // 선택한 패턴의 컬럼 적용
-        cloneColumns = p.columns ?? [];
-        renderCloneFields();
-      });
-
-      $patterns.appendChild(card);
-    }
-
-    if (cloneColumns.length > 0) {
-      renderCloneFields();
-      // 자동으로 Step 2로 이동
-      setTimeout(() => goToCloneStep(2), 500);
-    } else {
-      $('clone-error').textContent = '필드를 추론할 수 없습니다. 다른 페이지에서 시도해보세요.';
-      $('clone-error').classList.remove('hidden');
-    }
-  } catch (err) {
-    $('clone-error').textContent = `감지 실패: ${String(err)}`;
-    $('clone-error').classList.remove('hidden');
-  } finally {
-    $btnNext.disabled = false;
-    $btnNext.textContent = '✨ 구조 감지 시작';
-    detectBtn.disabled = false;
-    detectBtn.textContent = '';
-    const span = document.createElement('span');
-    span.textContent = '✨';
-    detectBtn.appendChild(span);
-    detectBtn.appendChild(document.createTextNode(' 구조 감지 시작'));
-  }
-}
-
-// Clone 필드 렌더링 — DOM 추론 컬럼 표시
-function renderCloneFields(): void {
-  if (cloneColumns.length === 0) return;
-
-  const $fields = $('clone-fields');
-  $fields.textContent = '';
-
-  const ICONS: Record<string, string> = {
-    text: 'Aa', link: '🔗', image: '🖼️', file: '📎', number: '#',
-  };
-
-  for (let i = 0; i < cloneColumns.length; i++) {
-    const col = cloneColumns[i];
-    const item = document.createElement('div');
-    item.className = 'field-item';
-
-    const icon = document.createElement('span');
-    icon.className = 'field-type-icon';
-    icon.textContent = ICONS[col.type] || 'Aa';
-
-    const name = document.createElement('span');
-    name.className = 'field-name';
-    name.textContent = col.name;
-
-    const typeLabel = document.createElement('span');
-    typeLabel.style.cssText = 'font-size: 11px; color: var(--text-dim); margin-left: auto;';
-    typeLabel.textContent = col.type + (col.attribute ? ` [${col.attribute}]` : '');
-
-    const remove = document.createElement('button');
-    remove.className = 'field-remove';
-    remove.textContent = '×';
-    remove.addEventListener('click', () => {
-      cloneColumns.splice(i, 1);
-      renderCloneFields();
-    });
-
-    item.appendChild(icon);
-    item.appendChild(name);
-    item.appendChild(typeLabel);
-    item.appendChild(remove);
-    $fields.appendChild(item);
-  }
-}
-
-// Clone 데이터 추출 실행 — DOM 추론 컬럼으로 추출
-async function runCloneExtract(): Promise<void> {
-  if (cloneColumns.length === 0 || clonePatterns.length === 0) return;
-
-  showProgress('데이터 추출 중...', 30);
-
-  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-  if (!tab?.id) return;
-
-  const bestPattern = clonePatterns[0];
-
-  try {
-    const result = await chrome.runtime.sendMessage({
-      type: MessageType.CLONE_EXTRACT_DATA,
-      payload: {
-        tabId: tab.id,
-        containerSelector: bestPattern.containerSelector,
-        itemSelector: bestPattern.signature.split(':')[0].toLowerCase(),
-        columns: cloneColumns,
-      },
-    }) as ScrapeResult;
-
-    updateProgress('추출 완료', 100);
-
-    if (result?.rows?.length > 0) {
-      cloneResult = result;
-      setTimeout(() => {
-        hideProgress();
-        goToCloneStep(3);
-        renderCloneResult();
-      }, 300);
-    } else {
-      updateProgress('데이터를 찾지 못했습니다', 100);
-      updateProgressDetail(
-        '페이지가 동적 로딩(SPA)이면 콘텐츠가 로드된 후 다시 시도해보세요.'
-      );
-      setTimeout(() => hideProgress(), 5000);
-    }
-  } catch (err) {
-    updateProgress('추출 실패', 100);
-    updateProgressDetail(String(err));
-    setTimeout(() => hideProgress(), 5000);
-  }
-}
-
-// Clone 결과 렌더링
-function renderCloneResult(): void {
-  if (!cloneResult) return;
-
-  $('clone-result-info').textContent = `${cloneResult.rows.length}행 × ${cloneResult.columns.length}열 추출 완료`;
-
-  const $head = $('clone-result-head');
-  const $body = $('clone-result-body');
-
-  // 헤더
-  $head.textContent = '';
-  const headerRow = document.createElement('tr');
-  for (const col of cloneResult.columns) {
-    const th = document.createElement('th');
-    th.textContent = col;
-    headerRow.appendChild(th);
-  }
-  $head.appendChild(headerRow);
-
-  // 페이지네이션
-  const totalPages = Math.ceil(cloneResult.rows.length / PAGE_SIZE);
-  const start = (clonePage - 1) * PAGE_SIZE;
-  const pageRows = cloneResult.rows.slice(start, start + PAGE_SIZE);
-
-  $body.textContent = '';
-  for (const row of pageRows) {
-    const tr = document.createElement('tr');
-    for (const col of cloneResult.columns) {
-      const td = document.createElement('td');
-      const value = String(row[col] ?? '');
-      td.title = value;
-
       if (value.startsWith('http://') || value.startsWith('https://')) {
         const link = document.createElement('a');
         link.href = value;
@@ -687,104 +226,304 @@ function renderCloneResult(): void {
     $body.appendChild(tr);
   }
 
-  // 페이지네이션 UI
   if (totalPages > 1) {
-    $('clone-pagination').classList.remove('hidden');
-    $('clone-page-info').textContent = `${clonePage} / ${totalPages}`;
-    ($('clone-btn-prev') as HTMLButtonElement).disabled = clonePage <= 1;
-    ($('clone-btn-next') as HTMLButtonElement).disabled = clonePage >= totalPages;
+    $('pagination').classList.remove('hidden');
+    $('page-info').textContent = `${currentPage} / ${totalPages}`;
+    ($('btn-prev') as HTMLButtonElement).disabled = currentPage <= 1;
+    ($('btn-next') as HTMLButtonElement).disabled = currentPage >= totalPages;
+  } else {
+    $('pagination').classList.add('hidden');
   }
 }
 
-// Clone 내보내기 버튼
-document.querySelectorAll('.clone-export-btn').forEach((btn) => {
+// === 데이터 내보내기 ===
+document.querySelectorAll('.export-btn').forEach((btn) => {
   btn.addEventListener('click', () => {
-    if (!cloneResult) return;
-    const format = (btn as HTMLElement).dataset['cloneFormat'] as ExportFormat;
-    downloadData(cloneResult, format);
+    if (!currentResult) return;
+    const format = (btn as HTMLElement).dataset['format'] as ExportFormat;
+    downloadData(currentResult, format);
   });
 });
 
-// Clone 페이지네이션
-$('clone-btn-prev')?.addEventListener('click', () => {
-  if (clonePage > 1) { clonePage--; renderCloneResult(); }
-});
+// === HTML 클론 ===
+$('btn-clone-html').addEventListener('click', async () => {
+  const btn = $('btn-clone-html') as HTMLButtonElement;
+  btn.disabled = true;
+  btn.querySelector('.dl-label')!.textContent = t('generating');
 
-$('clone-btn-next')?.addEventListener('click', () => {
-  if (cloneResult && clonePage < Math.ceil(cloneResult.rows.length / PAGE_SIZE)) {
-    clonePage++; renderCloneResult();
+  try {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (!tab?.id) return;
+
+    const response = await chrome.runtime.sendMessage({
+      type: MessageType.CLONE_EXTRACT_ASSETS,
+      payload: { tabId: tab.id },
+    }) as { html: string; error?: string };
+
+    if (response.error || !response.html) {
+      alert(`${t('cloneFailed')}: ${response.error ?? t('emptyHtml')}`);
+      return;
+    }
+
+    downloadBlob(response.html, 'text/html', `clone-${Date.now()}.html`);
+  } finally {
+    btn.disabled = false;
+    btn.querySelector('.dl-label')!.textContent = t('htmlClone');
   }
 });
 
-// 구조 감지 버튼
-$('btn-clone-detect').addEventListener('click', runCloneDetect);
+// === 사이트 패키지 (HTML + CSS 분리 + content.json) ===
+$('btn-site-package').addEventListener('click', async () => {
+  const btn = $('btn-site-package') as HTMLButtonElement;
+  btn.disabled = true;
+  btn.querySelector('.dl-label')!.textContent = t('generating');
+
+  try {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (!tab?.id) return;
+
+    // 페이지에서 HTML 구조 + CSS 분리 추출
+    const [result] = await chrome.scripting.executeScript({
+      target: { tabId: tab.id },
+      func: () => {
+        // 확장 프로그램/광고차단 주입 CSS 필터링 패턴
+        const JUNK_PATTERNS = [
+          'data-darkreader', 'darkreader',
+          'display: none !important',
+          'adsbygoogle', 'adsense', 'advert',
+          '#adblock', '.adblock', '#ads-', '.ads-',
+          'data-ad-', 'div-gpt-ad',
+          'taboola', 'outbrain', 'zergnet',
+          'sponsored', 'sponsor',
+        ];
+
+        function isJunkRule(cssText: string): boolean {
+          const lower = cssText.toLowerCase();
+          if (lower.includes('display: none !important') && cssText.length > 500) return true;
+          if (lower.includes('darkreader')) return true;
+          if (lower.includes('chrome-extension://')) return true;
+          if (lower.includes('moz-extension://')) return true;
+          return false;
+        }
+
+        function isJunkSheet(sheet: CSSStyleSheet): boolean {
+          const href = sheet.href ?? '';
+          if (href.includes('chrome-extension://')) return true;
+          if (href.includes('moz-extension://')) return true;
+          const owner = sheet.ownerNode as HTMLElement | null;
+          if (owner?.hasAttribute('data-darkreader-mode')) return true;
+          if (owner?.classList?.contains('darkreader')) return true;
+          return false;
+        }
+
+        // CSS 수집 — 정크 필터링
+        const cssTexts: string[] = [];
+        for (const sheet of Array.from(document.styleSheets)) {
+          if (isJunkSheet(sheet)) continue;
+          try {
+            const rules = Array.from(sheet.cssRules);
+            const cleanRules = rules
+              .map(r => r.cssText)
+              .filter(text => !isJunkRule(text));
+            if (cleanRules.length > 0) {
+              const source = sheet.href ?? 'inline';
+              cssTexts.push(`/* === ${source} === */\n` + cleanRules.join('\n'));
+            }
+          } catch {
+            if (sheet.href) cssTexts.push(`@import url("${sheet.href}");`);
+          }
+        }
+
+        let combinedCss = cssTexts.join('\n\n');
+        combinedCss = combinedCss.replace(/@font-face\s*\{[^}]*url\([^)]*\.(woff2?|ttf|otf|eot)[^}]*\}/gi, '/* @font-face removed — use system fonts */');
+        combinedCss = combinedCss.replace(
+          /--vp-font-family-base:\s*[^;]+;/g,
+          '--vp-font-family-base: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;'
+        );
+        combinedCss = combinedCss.replace(/"Inter var"[^,]*,\s*/g, '');
+
+        // HTML 클린업
+        const baseUrl = window.location.origin;
+        const doc = document.documentElement.cloneNode(true) as HTMLElement;
+
+        doc.querySelectorAll('[data-darkreader-mode], [data-darkreader-scheme], .darkreader, meta[name="darkreader"]').forEach(el => el.remove());
+        doc.querySelectorAll('[id^="thunderbit"], [id^="c4g-"], #open-side-panel').forEach(el => el.remove());
+
+        doc.querySelectorAll('[src]').forEach(el => {
+          const src = el.getAttribute('src');
+          if (src && !src.startsWith('http') && !src.startsWith('data:')) {
+            try { el.setAttribute('src', new URL(src, baseUrl).href); } catch { /* skip */ }
+          }
+        });
+        doc.querySelectorAll('a[href]').forEach(el => {
+          const href = el.getAttribute('href');
+          if (href && !href.startsWith('http') && !href.startsWith('#') && !href.startsWith('javascript:') && !href.startsWith('mailto:')) {
+            try { el.setAttribute('href', new URL(href, baseUrl).href); } catch { /* skip */ }
+          }
+        });
+        doc.querySelectorAll('[srcset]').forEach(el => {
+          const srcset = el.getAttribute('srcset');
+          if (srcset) {
+            const converted = srcset.split(',').map(part => {
+              const [url, ...rest] = part.trim().split(/\s+/);
+              try { return [new URL(url, baseUrl).href, ...rest].join(' '); } catch { return part; }
+            }).join(', ');
+            el.setAttribute('srcset', converted);
+          }
+        });
+
+        doc.querySelectorAll('script, style, link[rel="stylesheet"]').forEach(el => el.remove());
+        doc.querySelectorAll('[data-darkreader-inline-bgcolor], [data-darkreader-inline-color], [data-darkreader-inline-border]').forEach(el => {
+          Array.from(el.attributes).forEach(attr => {
+            if (attr.name.startsWith('data-darkreader')) el.removeAttribute(attr.name);
+          });
+        });
+
+        const head = doc.querySelector('head');
+        if (head) {
+          const link = document.createElement('link');
+          link.rel = 'stylesheet';
+          link.href = 'style.css';
+          head.prepend(link);
+        }
+
+        const navLinks: { title: string; url: string }[] = [];
+        doc.querySelectorAll('nav a, aside a, [class*="sidebar"] a, [class*="menu"] a').forEach(a => {
+          const title = (a.textContent ?? '').trim();
+          const url = a.getAttribute('href') ?? '';
+          if (title && url) navLinks.push({ title, url });
+        });
+
+        const sections: { title: string; content: string; images: string[]; links: string[] }[] = [];
+        doc.querySelectorAll('h1, h2, h3').forEach(heading => {
+          const title = (heading.textContent ?? '').trim();
+          const images: string[] = [];
+          const links: string[] = [];
+          let content = '';
+
+          let sibling = heading.nextElementSibling;
+          while (sibling && !/^H[1-3]$/.test(sibling.tagName)) {
+            content += (sibling.textContent ?? '').trim() + '\n';
+            sibling.querySelectorAll('img').forEach(img => {
+              const src = img.getAttribute('src');
+              if (src) images.push(src);
+            });
+            sibling.querySelectorAll('a[href]').forEach(a => {
+              const href = a.getAttribute('href');
+              if (href && href.startsWith('http')) links.push(href);
+            });
+            sibling = sibling.nextElementSibling;
+          }
+
+          if (title) sections.push({ title, content: content.trim(), images, links });
+        });
+
+        return {
+          html: `<!DOCTYPE html>\n${doc.outerHTML}`,
+          css: combinedCss,
+          nav: navLinks,
+          sections,
+          meta: { title: document.title, url: window.location.href, description: document.querySelector('meta[name="description"]')?.getAttribute('content') ?? '' },
+        };
+      },
+    });
+
+    const pkg = result?.result as {
+      html: string; css: string;
+      nav: { title: string; url: string }[];
+      sections: { title: string; content: string; images: string[]; links: string[] }[];
+      meta: { title: string; url: string; description: string };
+    } | undefined;
+
+    if (!pkg) {
+      alert(t('packageFailed'));
+      return;
+    }
+
+    const contentJson = JSON.stringify({
+      meta: pkg.meta,
+      navigation: pkg.nav,
+      sections: pkg.sections,
+      extractedData: currentResult ? { columns: currentResult.columns, rows: currentResult.rows } : null,
+    }, null, 2);
+
+    const readme = `# ScrapeFlow Site Package
+
+## Source: ${pkg.meta.title}
+- URL: ${pkg.meta.url}
+- Extracted: ${new Date().toISOString().slice(0, 10)}
+
+## File Structure
+- \`index.html\` — Page structure (references style.css)
+- \`style.css\` — Separated stylesheet (customize colors, fonts, etc.)
+- \`content.json\` — Extracted content data
+  - \`meta\` — Page metadata
+  - \`navigation\` — Navigation link list
+  - \`sections\` — Content sections (title, content, images, links)
+  - \`extractedData\` — Pattern-based extracted data (table format)
+
+## Customization Guide
+1. Edit colors/fonts/layout in \`style.css\`
+2. Replace data in \`content.json\` with your content
+3. Adjust structure in \`index.html\`
+4. Preview locally, then deploy
+
+Generated by ScrapeFlow
+`;
+
+    downloadBlob(pkg.html, 'text/html', 'index.html');
+    setTimeout(() => downloadBlob(pkg.css, 'text/css', 'style.css'), 300);
+    setTimeout(() => downloadBlob(contentJson, 'application/json', 'content.json'), 600);
+    setTimeout(() => downloadBlob(readme, 'text/markdown', 'README.md'), 900);
+
+  } finally {
+    btn.disabled = false;
+    btn.querySelector('.dl-label')!.textContent = t('sitePackage');
+  }
+});
+
+// === 유틸리티 ===
+function downloadBlob(content: string, mimeType: string, filename: string): void {
+  const blob = new Blob([content], { type: mimeType });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+// === 페이지네이션 ===
+$('btn-prev').addEventListener('click', () => {
+  if (currentPage > 1) { currentPage--; renderResultTable(); }
+});
+$('btn-next').addEventListener('click', () => {
+  if (currentResult && currentPage < Math.ceil(currentResult.rows.length / PAGE_SIZE)) {
+    currentPage++; renderResultTable();
+  }
+});
+
+// === 이벤트 ===
+$btnAnalyze.addEventListener('click', runFullAnalysis);
+
+// === 언어 토글 ===
+document.getElementById('lang-toggle')!.addEventListener('click', () => {
+  applyLang(currentLang === 'ko' ? 'en' : 'ko');
+});
 
 // === Init ===
 async function init(): Promise<void> {
-  // Clone 모드 감지
-  const storage = await chrome.storage.local.get('sf_mode');
-  isCloneMode = storage['sf_mode'] === 'clone';
-
-  // 모드 초기화 후 플래그 제거
-  if (isCloneMode) {
-    await chrome.storage.local.remove('sf_mode');
+  // 저장된 언어 설정 복원
+  const stored = await chrome.storage.local.get(['sf_lang']);
+  if (stored['sf_lang']) {
+    applyLang(stored['sf_lang'] as string);
   }
 
-  // 현재 탭 정보 표시
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   if (tab) {
-    $('current-page-info').textContent = `${tab.title?.slice(0, 40)}\n${tab.url?.slice(0, 50)}`;
     $sourceName.textContent = tab.title ?? '';
     $sourceBar.classList.remove('hidden');
   }
-
-  // 기존 결과가 있으면 바로 결과 화면
-  const results = await getResults();
-  if (results.length > 0) {
-    currentResult = results[0];
-  }
-
-  if (isCloneMode) {
-    // Clone 모드: clone wizard 표시
-    $('bottom-nav').classList.remove('hidden');
-    goToCloneStep(1);
-  } else {
-    goToStep(1);
-  }
 }
-
-// 외부 close 클릭 시 드롭다운 닫기
-document.addEventListener('click', (e) => {
-  const menu = $('download-menu');
-  const btn = $('btn-download');
-  if (!menu.contains(e.target as Node) && e.target !== btn) {
-    menu.classList.add('hidden');
-  }
-});
-
-// storage 변경 감지
-chrome.storage.onChanged.addListener(async (changes) => {
-  // 스크래핑 결과 갱신
-  if (changes['scrapeflow_results']?.newValue) {
-    const results = changes['scrapeflow_results'].newValue as ScrapeResult[];
-    if (results.length > 0) {
-      currentResult = results[0];
-      if (currentStep === 4) renderResultTable();
-    }
-  }
-
-  // Clone 모드 전환 감지 — 사이드패널이 이미 열려있을 때
-  if (changes['sf_mode']?.newValue === 'clone') {
-    await chrome.storage.local.remove('sf_mode');
-    isCloneMode = true;
-    // clone 상태 초기화
-    cloneStep = 1;
-    clonePatterns = [];
-    cloneColumns = [];
-    cloneResult = null;
-    clonePage = 1;
-    goToCloneStep(1);
-  }
-});
 
 init();

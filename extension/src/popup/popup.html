@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ko">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=400">
@@ -19,75 +19,46 @@
           <button class="theme-btn" data-theme="system" title="System" aria-label="System theme">💻</button>
         </div>
         <!-- 한/영 토글 -->
-        <button class="lang-toggle" id="lang-toggle" title="Language">한/EN</button>
+        <button class="lang-toggle" id="lang-toggle" title="Language">EN/한</button>
       </div>
     </header>
 
     <!-- 페이지 미리보기 -->
-    <div id="page-info" class="page-info" role="region" aria-label="현재 페이지 정보">
-      <div class="page-title" id="page-title">페이지 로딩 중...</div>
+    <div id="page-info" class="page-info" role="region" aria-label="Current page info">
+      <div class="page-title" id="page-title">Loading page...</div>
       <div class="page-url" id="page-url"></div>
       <div class="page-stats" id="page-stats" aria-live="polite"></div>
     </div>
 
     <!-- 액션 버튼 -->
     <div class="actions">
-      <button id="btn-scrape" class="btn btn-primary"
-        aria-label="페이지 데이터 자동 추출" tabindex="1">
+      <button id="btn-extract" class="btn btn-primary"
+        aria-label="Extract page data" tabindex="1">
         <span class="btn-icon" aria-hidden="true">📊</span>
-        데이터 추출
+        Extract Data
       </button>
       <button id="btn-capture" class="btn btn-secondary"
-        aria-label="현재 페이지 전체 캡처" tabindex="2">
+        aria-label="Capture full page" tabindex="2">
         <span class="btn-icon" aria-hidden="true">📸</span>
-        풀 페이지 캡처
+        Full Page Capture
       </button>
-    </div>
-    <div class="actions">
-      <button id="btn-clone" class="btn btn-clone"
-        aria-label="사이트 데이터 및 디자인 전체 추출" tabindex="3">
-        <span class="btn-icon" aria-hidden="true">🏗️</span>
-        Site Clone
-      </button>
-    </div>
-
-    <!-- AI 상태 -->
-    <p class="ai-hint" id="ai-hint"></p>
-
-    <!-- 빈 상태 / 온보딩 -->
-    <div id="empty-state" class="empty-state hidden">
-      <p class="empty-title">이 페이지에서 추출할 데이터가 없습니다</p>
-      <p class="empty-desc">테이블이나 리스트가 있는 페이지에서 사용해보세요</p>
-    </div>
-
-    <!-- 결과 미리보기 -->
-    <div id="result-preview" class="result-preview hidden">
-      <div class="result-header">
-        <span id="result-count">0행 추출됨</span>
-        <button id="btn-open-panel" class="btn btn-link">상세 보기 →</button>
-      </div>
-      <div class="quick-export">
-        <button class="btn btn-export-sm" data-format="json">JSON</button>
-        <button class="btn btn-export-sm" data-format="csv">CSV</button>
-        <button class="btn btn-export-sm" data-format="clipboard">복사</button>
-      </div>
     </div>
 
     <!-- 설정 패널 -->
     <div id="settings-panel" class="settings-panel hidden">
-      <h3 class="settings-title">설정</h3>
+      <h3 class="settings-title">Settings</h3>
       <label class="settings-label" for="api-key-input">Claude API Key</label>
       <div class="ai-input-row">
         <input type="password" id="api-key-input" class="ai-input"
           placeholder="sk-ant-..." autocomplete="off" />
-        <button id="btn-save-key" class="btn btn-primary btn-sm">저장</button>
+        <button id="btn-save-key" class="btn btn-primary btn-sm">Save</button>
       </div>
       <p id="key-status" class="ai-hint"></p>
     </div>
 
     <!-- 푸터 -->
     <footer class="footer">
-      <button id="btn-settings" class="btn btn-ghost">설정</button>
+      <button id="btn-settings" class="btn btn-ghost">Settings</button>
       <span class="version">v0.1.0</span>
     </footer>
   </div>

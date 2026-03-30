@@ -3,6 +3,13 @@ import type { Message, ScrapeResult, DetectedPatternInfo } from '../lib/types';
 import { saveResult } from '../lib/storage';
 import { inferDataStructure } from '../lib/ai';
 
+// 삭제 시 피드백 페이지 URL (GitHub Pages 등에 호스팅 후 실제 URL로 교체)
+const UNINSTALL_URL = 'https://YOUR_USERNAME.github.io/web_ScrapeFlow/uninstall.html';
+
+chrome.runtime.onInstalled.addListener(() => {
+  chrome.runtime.setUninstallURL(UNINSTALL_URL);
+});
+
 // 메시지 라우팅
 chrome.runtime.onMessage.addListener(
   (message: Message, _sender, sendResponse: (response?: unknown) => void) => {
@@ -32,6 +39,10 @@ async function handleMessage(message: Message): Promise<unknown> {
     case MessageType.CLONE_DETECT_PATTERNS:
       return handleCloneDetect(message.payload as { tabId: number });
 
+    // 페이지 HTML+CSS 클론 추출
+    case MessageType.CLONE_EXTRACT_ASSETS:
+      return handleCloneHtml(message.payload as { tabId: number });
+
     // 사이트 클론: DOM 기반 데이터 추출
     case MessageType.CLONE_EXTRACT_DATA:
       return handleCloneExtract(message.payload as {
@@ -43,6 +54,106 @@ async function handleMessage(message: Message): Promise<unknown> {
 
     default:
       return { error: `알 수 없는 메시지 타입: ${message.type}` };
+  }
+}
+
+// 페이지 HTML+CSS 클론 — 인라인 스타일시트 포함 standalone HTML 생성
+async function handleCloneHtml(opts: { tabId: number }): Promise<{ html: string; error?: string }> {
+  const { tabId } = opts;
+
+  try {
+    const [result] = await chrome.scripting.executeScript({
+      target: { tabId },
+      func: () => {
+        // 확장 프로그램 주입 CSS 필터링
+        function isJunkRule(cssText: string): boolean {
+          const lower = cssText.toLowerCase();
+          if (lower.includes('display: none !important') && cssText.length > 500) return true;
+          if (lower.includes('darkreader')) return true;
+          if (lower.includes('chrome-extension://') || lower.includes('moz-extension://')) return true;
+          return false;
+        }
+
+        function isJunkSheet(sheet: CSSStyleSheet): boolean {
+          const href = sheet.href ?? '';
+          if (href.includes('chrome-extension://') || href.includes('moz-extension://')) return true;
+          const owner = sheet.ownerNode as HTMLElement | null;
+          if (owner?.hasAttribute('data-darkreader-mode')) return true;
+          if (owner?.classList?.contains('darkreader')) return true;
+          return false;
+        }
+
+        // CSS 수집 — 정크 필터링
+        const styles: string[] = [];
+        for (const sheet of Array.from(document.styleSheets)) {
+          if (isJunkSheet(sheet)) continue;
+          try {
+            const rules = Array.from(sheet.cssRules);
+            const clean = rules.map(r => r.cssText).filter(t => !isJunkRule(t));
+            if (clean.length > 0) styles.push(clean.join('\n'));
+          } catch {
+            if (sheet.href) styles.push(`@import url("${sheet.href}");`);
+          }
+        }
+
+        // 폰트 경로를 시스템 폰트로 대체
+        let combinedCss = styles.join('\n');
+        combinedCss = combinedCss.replace(/@font-face\s*\{[^}]*url\([^)]*\.(woff2?|ttf|otf|eot)[^}]*\}/gi, '/* @font-face removed */');
+        combinedCss = combinedCss.replace(/--vp-font-family-base:\s*[^;]+;/g,
+          '--vp-font-family-base: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;');
+        combinedCss = combinedCss.replace(/"Inter var"[^,]*,\s*/g, '');
+
+        // 상대 URL → 절대 URL 변환
+        const baseUrl = window.location.origin;
+        const doc = document.documentElement.cloneNode(true) as HTMLElement;
+
+        // 확장 프로그램 주입 요소 제거
+        doc.querySelectorAll('[data-darkreader-mode], [data-darkreader-scheme], .darkreader, meta[name="darkreader"]').forEach(el => el.remove());
+        doc.querySelectorAll('[id^="thunderbit"], [id^="c4g-"], #open-side-panel').forEach(el => el.remove());
+
+        // img src, a href 등 절대경로로 변환
+        doc.querySelectorAll('img[src], video[src], audio[src], source[src]').forEach(el => {
+          const src = el.getAttribute('src');
+          if (src && !src.startsWith('http') && !src.startsWith('data:')) {
+            try { el.setAttribute('src', new URL(src, baseUrl).href); } catch { /* 무시 */ }
+          }
+        });
+        doc.querySelectorAll('a[href]').forEach(el => {
+          const href = el.getAttribute('href');
+          if (href && !href.startsWith('http') && !href.startsWith('#') && !href.startsWith('javascript:')) {
+            try { el.setAttribute('href', new URL(href, baseUrl).href); } catch { /* 무시 */ }
+          }
+        });
+
+        // 기존 <link rel="stylesheet">와 <style> 태그 제거
+        doc.querySelectorAll('link[rel="stylesheet"], style').forEach(el => el.remove());
+        doc.querySelectorAll('script').forEach(el => el.remove());
+        // data-darkreader 속성 정리
+        doc.querySelectorAll('*').forEach(el => {
+          Array.from(el.attributes).forEach(attr => {
+            if (attr.name.startsWith('data-darkreader')) el.removeAttribute(attr.name);
+          });
+        });
+
+        // 인라인 스타일 삽입
+        const styleTag = document.createElement('style');
+        styleTag.textContent = combinedCss;
+        const head = doc.querySelector('head');
+        if (head) head.prepend(styleTag);
+
+        // 메타 태그 추가
+        const meta = document.createElement('meta');
+        meta.setAttribute('name', 'generator');
+        meta.setAttribute('content', `ScrapeFlow Clone - ${window.location.href}`);
+        if (head) head.prepend(meta);
+
+        return `<!DOCTYPE html>\n${doc.outerHTML}`;
+      },
+    });
+
+    return { html: result?.result as string ?? '' };
+  } catch (err) {
+    return { html: '', error: String(err) };
   }
 }
 
