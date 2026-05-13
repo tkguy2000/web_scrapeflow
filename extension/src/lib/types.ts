@@ -60,7 +60,6 @@ export enum ScrapeFlowError {
   CAPTURE_FAILED = 'CAPTURE_FAILED',
   EXPORT_FAILED = 'EXPORT_FAILED',
   CDP_ATTACH_FAILED = 'CDP_ATTACH_FAILED',
-  AI_API_FAILED = 'AI_API_FAILED',
   PERMISSION_DENIED = 'PERMISSION_DENIED',
 }
 
@@ -77,22 +76,6 @@ export interface CaptureOptions {
 }
 
 // === 사이트 클론 타입 ===
-
-// AI 클론 컬럼 — 속성(attribute) 지정 가능
-export interface AICloneColumn {
-  name: string;
-  selector: string;
-  type: 'text' | 'link' | 'image' | 'file' | 'number';
-  attribute?: string; // 기본 textContent, 'href', 'src', 'data-src' 등
-}
-
-// AI 클론 추론 결과
-export interface AICloneResult {
-  containerSelector: string;
-  itemSelector: string;
-  columns: AICloneColumn[];
-  pageType: 'listing' | 'detail' | 'blog' | 'docs' | 'portfolio' | 'other';
-}
 
 // 감지된 반복 패턴 (Content Script → SW 직렬화용)
 export interface DetectedPatternInfo {

@@ -11,10 +11,42 @@
       "Skill(autoplan)",
       "Skill(autoplan:*)",
       "Bash(npm install:*)",
-      "Bash(npx vite:*)"
+      "Bash(npx vite:*)",
+      "Bash(npx vitest:*)",
+      "Bash(B=~/.claude/skills/gstack/browse/dist/browse)",
+      "Bash($B goto:*)",
+      "Bash($B screenshot:*)",
+      "Bash($B text:*)",
+      "Read(//c/Users/tkguy/AppData/Local/Temp/**)",
+      "Bash($B snapshot:*)",
+      "Bash($B html:*)",
+      "Bash($B js:*)",
+      "Bash($B eval:*)",
+      "Bash(\"d:/Claude/web_ScrapeFlow/extracted/ihoudini/blog-data.json\")",
+      "Bash(grep -c \"sk-ant-api03\" \"d:/Claude/web_ScrapeFlow/extension/dist/assets/ai-\"*.js)",
+      "Bash(grep -c \"sk-ant-api03\" \"d:/Claude/web_ScrapeFlow/extension/dist/assets/\"*.js)",
+      "Bash(grep -o \"let [a-z]=[a-z]=>\" \"d:/Claude/web_ScrapeFlow/extension/dist/assets/service-worker\"*.js)",
+      "Bash(grep \"createObjectURL\" \"d:/Claude/web_ScrapeFlow/extension/dist/assets/service-worker\"*.js)",
+      "Bash(grep \"btoa\" \"d:/Claude/web_ScrapeFlow/extension/dist/assets/service-worker\"*.js)",
+      "Bash(find /d/Claude/web_ScrapeFlow/extension/src -type f -name *.ts -o -name *.tsx)",
+      "Bash(npm run:*)",
+      "Bash(curl -s -L \"https://tokeru.com/cgwiki/HoudiniGettingStarted\" -o /d/tmp/tokeru-page.html)",
+      "Bash(curl -s -L \"https://tokeru.com/cgwiki/\" -o /d/tmp/tokeru-home.html)",
+      "Bash(curl -s -L \"https://news.ycombinator.com/\" -o /d/tmp/hn.html)",
+      "Bash(node extract-site.mjs)",
+      "Bash(npx create-next-app@latest hn-clone --typescript --tailwind --eslint --app --no-src-dir --no-import-alias --turbopack)",
+      "Bash(npx next:*)",
+      "Bash(curl -s http://localhost:3335)",
+      "Skill(browse)",
+      "Skill(browse:*)",
+      "WebFetch(domain:tokeru.com)",
+      "Bash(npm list:*)",
+      "Bash(npx --yes canvas --version)",
+      "Bash(powershell -Command \"Remove-Item ../scrapeflow.zip -ErrorAction SilentlyContinue; Compress-Archive -Path * -DestinationPath ../scrapeflow.zip -Force\")"
     ],
     "additionalDirectories": [
-      "C:\\Users\\tkguy\\.claude\\projects\\d--Claude-web-ScrapeFlow\\memory"
+      "C:\\Users\\tkguy\\.claude\\projects\\d--Claude-web-ScrapeFlow\\memory",
+      "\\tmp"
     ]
   }
 }

@@ -11,12 +11,6 @@ const i18n: Record<string, Record<string, I18nValue>> = {
     extract: '데이터 추출',
     fullCapture: '풀 페이지 캡처',
     capturing: '캡처 중...',
-    settings: '설정',
-    apiKeyLabel: 'Claude API Key',
-    save: '저장',
-    apiKeySet: 'API 키가 설정되어 있습니다',
-    enterApiKey: 'API 키를 입력해주세요',
-    saved: '저장되었습니다',
     table: '테이블',
     list: '리스트',
     noStructured: '구조화된 데이터 없음',
@@ -32,12 +26,6 @@ const i18n: Record<string, Record<string, I18nValue>> = {
     extract: 'Extract Data',
     fullCapture: 'Full Page Capture',
     capturing: 'Capturing...',
-    settings: 'Settings',
-    apiKeyLabel: 'Claude API Key',
-    save: 'Save',
-    apiKeySet: 'API key is configured',
-    enterApiKey: 'Please enter an API key',
-    saved: 'Saved',
     table: 'Tables',
     list: 'Lists',
     noStructured: 'No structured data',
@@ -92,12 +80,6 @@ function applyLang(lang: string): void {
   // 정적 텍스트 업데이트
   const $langBtn = document.getElementById('lang-toggle')!;
   $langBtn.textContent = lang === 'ko' ? '한/EN' : 'EN/한';
-
-  // UI 텍스트 갱신
-  document.getElementById('btn-settings')!.textContent = t('settings');
-  document.querySelector('.settings-title')!.textContent = t('settings');
-  document.querySelector('.settings-label')!.textContent = t('apiKeyLabel');
-  document.getElementById('btn-save-key')!.textContent = t('save');
 
   // 버튼 텍스트
   resetButton($btnExtract, '📊', t('extract'));
@@ -190,34 +172,6 @@ $btnCapture.addEventListener('click', async () => {
     $btnCapture.disabled = false;
     resetButton($btnCapture, '📸', t('fullCapture'));
   }
-});
-
-// === 설정 패널 ===
-const $btnSettings = document.getElementById('btn-settings')!;
-const $settingsPanel = document.getElementById('settings-panel')!;
-const $apiKeyInput = document.getElementById('api-key-input') as HTMLInputElement;
-const $btnSaveKey = document.getElementById('btn-save-key') as HTMLButtonElement;
-const $keyStatus = document.getElementById('key-status')!;
-
-$btnSettings.addEventListener('click', async () => {
-  $settingsPanel.classList.toggle('hidden');
-  if (!$settingsPanel.classList.contains('hidden')) {
-    const { getApiKey } = await import('../lib/ai');
-    const key = await getApiKey();
-    if (key) {
-      $apiKeyInput.value = key;
-      $keyStatus.textContent = t('apiKeySet');
-    }
-  }
-});
-
-$btnSaveKey.addEventListener('click', async () => {
-  const key = $apiKeyInput.value.trim();
-  if (!key) { $keyStatus.textContent = t('enterApiKey'); return; }
-  const { setApiKey } = await import('../lib/ai');
-  await setApiKey(key);
-  $keyStatus.textContent = t('saved');
-  setTimeout(() => $settingsPanel.classList.add('hidden'), 1000);
 });
 
 // === 테마 토글 이벤트 ===

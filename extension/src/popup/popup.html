@@ -10,7 +10,6 @@
   <div id="app">
     <header class="header">
       <h1 class="logo">ScrapeFlow</h1>
-      <span class="badge">AI</span>
       <div class="header-controls">
         <!-- 테마 토글: 다크/라이트/시스템 -->
         <div class="theme-toggle" id="theme-toggle" role="radiogroup" aria-label="Theme">
@@ -44,22 +43,9 @@
       </button>
     </div>
 
-    <!-- 설정 패널 -->
-    <div id="settings-panel" class="settings-panel hidden">
-      <h3 class="settings-title">Settings</h3>
-      <label class="settings-label" for="api-key-input">Claude API Key</label>
-      <div class="ai-input-row">
-        <input type="password" id="api-key-input" class="ai-input"
-          placeholder="sk-ant-..." autocomplete="off" />
-        <button id="btn-save-key" class="btn btn-primary btn-sm">Save</button>
-      </div>
-      <p id="key-status" class="ai-hint"></p>
-    </div>
-
     <!-- 푸터 -->
     <footer class="footer">
-      <button id="btn-settings" class="btn btn-ghost">Settings</button>
-      <span class="version">v0.1.0</span>
+      <span class="version">v0.2.0</span>
     </footer>
   </div>
 

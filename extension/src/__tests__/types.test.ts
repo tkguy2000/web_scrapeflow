@@ -28,7 +28,6 @@ describe('ScrapeFlowError enum', () => {
     expect(ScrapeFlowError.CAPTURE_FAILED).toBe('CAPTURE_FAILED');
     expect(ScrapeFlowError.EXPORT_FAILED).toBe('EXPORT_FAILED');
     expect(ScrapeFlowError.CDP_ATTACH_FAILED).toBe('CDP_ATTACH_FAILED');
-    expect(ScrapeFlowError.AI_API_FAILED).toBe('AI_API_FAILED');
     expect(ScrapeFlowError.PERMISSION_DENIED).toBe('PERMISSION_DENIED');
   });
 });

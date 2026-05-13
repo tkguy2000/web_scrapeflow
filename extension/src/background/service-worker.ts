@@ -1,7 +1,6 @@
 import { MessageType } from '../lib/types';
 import type { Message, ScrapeResult, DetectedPatternInfo } from '../lib/types';
 import { saveResult } from '../lib/storage';
-import { inferDataStructure } from '../lib/ai';
 
 // 삭제 시 피드백 페이지 URL (GitHub Pages 등에 호스팅 후 실제 URL로 교체)
 const UNINSTALL_URL = 'https://tkguy2000.github.io/web_scrapeflow/uninstall.html';
@@ -25,9 +24,6 @@ async function handleMessage(message: Message): Promise<unknown> {
   switch (message.type) {
     case MessageType.SCRAPE_RESULT:
       return handleScrapeResult(message.payload as ScrapeResult);
-
-    case MessageType.SCRAPE_START:
-      return handleAiScrape(message.payload as { tabId: number; aiPrompt: string });
 
     case MessageType.CAPTURE_FULL_PAGE:
       return handleCapture(message.payload as { tabId: number; format: string; fullPage: boolean });
@@ -477,72 +473,6 @@ async function handleCloneExtract(opts: {
 async function handleScrapeResult(result: ScrapeResult): Promise<{ ok: boolean }> {
   await saveResult(result);
   return { ok: true };
-}
-
-// AI 스크래핑 — Claude API로 데이터 구조 추론 후 Content Script에서 추출
-async function handleAiScrape(opts: {
-  tabId: number;
-  aiPrompt: string;
-}): Promise<ScrapeResult> {
-  const { tabId, aiPrompt } = opts;
-
-  // 페이지 HTML 가져오기
-  const [htmlResult] = await chrome.scripting.executeScript({
-    target: { tabId },
-    func: () => document.documentElement.outerHTML,
-  });
-  const pageHtml = htmlResult?.result as string ?? '';
-
-  // 페이지 URL 가져오기
-  const tab = await chrome.tabs.get(tabId);
-  const pageUrl = tab.url ?? '';
-
-  // AI로 데이터 구조 추론
-  const aiResult = await inferDataStructure(aiPrompt, pageHtml, pageUrl);
-
-  // Content Script에서 AI 결과로 데이터 추출
-  const [extractResult] = await chrome.scripting.executeScript({
-    target: { tabId },
-    func: (containerSel: string, itemSel: string, columns: Array<{ name: string; selector: string; type: string }>) => {
-      const container = document.querySelector(containerSel);
-      if (!container) return { columns: columns.map(c => c.name), rows: [] };
-
-      const items = container.querySelectorAll(itemSel);
-      const colNames = columns.map(c => c.name);
-      const rows: Record<string, string>[] = [];
-
-      items.forEach(item => {
-        const row: Record<string, string> = {};
-        for (const col of columns) {
-          const el = item.querySelector(col.selector);
-          if (!el) { row[col.name] = ''; continue; }
-          if (col.type === 'link') row[col.name] = (el as HTMLAnchorElement).href ?? '';
-          else if (col.type === 'image') row[col.name] = (el as HTMLImageElement).src ?? '';
-          else row[col.name] = (el.textContent ?? '').trim();
-        }
-        rows.push(row);
-      });
-
-      return { columns: colNames, rows };
-    },
-    args: [aiResult.containerSelector, aiResult.itemSelector, aiResult.columns],
-  });
-
-  const extracted = extractResult?.result as { columns: string[]; rows: Record<string, string>[] } | undefined;
-
-  const result: ScrapeResult = {
-    columns: extracted?.columns ?? [],
-    rows: extracted?.rows ?? [],
-    url: pageUrl,
-    title: tab.title ?? '',
-    timestamp: Date.now(),
-  };
-
-  if (result.rows.length > 0) {
-    await saveResult(result);
-  }
-
-  return result;
 }
 
 // 풀 페이지 캡처
