@@ -17,8 +17,9 @@ Thunderbit 벤치마킹 기반 웹 스크래퍼 Chrome Extension. **순수 DOM �
 
 ## 현재 버전
 
-- manifest: **v0.2.0** (2026-05-12 보안 패치)
+- manifest: **v0.3.0** (2026-05-12 AI 코드 전면 제거 후 재빌드)
 - Chrome Web Store ID: `lpmffcafghlgeicmcidpfngnldknglcf`
+- 배포 zip: `extension/scrapeflow-v0.3.0.zip`
 
 ## 프로젝트 구조
 
@@ -170,3 +171,4 @@ cd extension && npx tsc --noEmit && npx vitest run
 | 2026-05-12 | `extension/src/lib/types.ts`, `__tests__/types.test.ts` | `AICloneResult`/`AICloneColumn`/`AI_API_FAILED` 제거 |
 | 2026-05-12 | `CLAUDE.md` | "AI 웹 스크래퍼" → "웹 스크래퍼" 재정의, 기술 스택에서 Claude API 제거, 보안 섹션 v2 — "UI에서 빼면 코드도 죽여라" 교훈 명문화 |
 | 2026-05-12 | `extension/package.json` | 버전 0.1.0 → 0.2.0 (manifest와 정렬) |
+| 2026-05-12 | `manifest.json`, `package.json`, `popup.html` | 버전 0.2.0 → 0.3.0 (AI 제거 후 재빌드용 — 이전 v0.2.0 zip은 보안 패치만 반영되어 AI 코드 잔존) |
